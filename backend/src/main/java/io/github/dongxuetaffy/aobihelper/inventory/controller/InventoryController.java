@@ -4,6 +4,8 @@ import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.stp.StpUtil;
 import io.github.dongxuetaffy.aobihelper.common.api.ApiResponse;
 import io.github.dongxuetaffy.aobihelper.inventory.dto.InventoryMarkSoldRequest;
+import io.github.dongxuetaffy.aobihelper.inventory.dto.InventoryBatchDeleteRequest;
+import io.github.dongxuetaffy.aobihelper.inventory.dto.InventoryBatchTogglePublicRequest;
 import io.github.dongxuetaffy.aobihelper.inventory.dto.InventoryPageQuery;
 import io.github.dongxuetaffy.aobihelper.inventory.dto.InventoryTogglePublicRequest;
 import io.github.dongxuetaffy.aobihelper.inventory.dto.InventoryUpsertRequest;
@@ -80,6 +82,18 @@ public class InventoryController {
     ) {
         inventoryItemService.deleteInventoryItem(currentUserId(), id, requestId);
         return ApiResponse.success("Inventory item deleted", null);
+    }
+
+    @PostMapping("/batch-delete")
+    public ApiResponse<Void> batchDeleteInventoryItems(@Valid @RequestBody InventoryBatchDeleteRequest request) {
+        inventoryItemService.batchDeleteInventoryItems(currentUserId(), request);
+        return ApiResponse.success("Inventory items deleted", null);
+    }
+
+    @PostMapping("/batch-toggle-public")
+    public ApiResponse<Void> batchToggleInventoryPublic(@Valid @RequestBody InventoryBatchTogglePublicRequest request) {
+        inventoryItemService.batchTogglePublic(currentUserId(), request);
+        return ApiResponse.success("Inventory public status toggled", null);
     }
 
     private Long currentUserId() {

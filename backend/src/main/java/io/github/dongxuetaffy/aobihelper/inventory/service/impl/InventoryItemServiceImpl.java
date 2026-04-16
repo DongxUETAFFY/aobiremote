@@ -7,6 +7,8 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import io.github.dongxuetaffy.aobihelper.common.constant.BusinessCode;
 import io.github.dongxuetaffy.aobihelper.common.exception.BusinessException;
 import io.github.dongxuetaffy.aobihelper.common.guard.service.OperationGuardService;
+import io.github.dongxuetaffy.aobihelper.inventory.dto.InventoryBatchDeleteRequest;
+import io.github.dongxuetaffy.aobihelper.inventory.dto.InventoryBatchTogglePublicRequest;
 import io.github.dongxuetaffy.aobihelper.inventory.dto.InventoryMarkSoldRequest;
 import io.github.dongxuetaffy.aobihelper.inventory.dto.InventoryPageQuery;
 import io.github.dongxuetaffy.aobihelper.inventory.dto.InventoryTogglePublicRequest;
@@ -29,6 +31,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -39,6 +42,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class InventoryItemServiceImpl extends ServiceImpl<InventoryItemMapper, InventoryItem> implements InventoryItemService {
     private static final String STATUS_UNSOLD = "unsold";
     private static final String STATUS_SOLD = "sold";
+    private static final String CATEGORY_MAGIC = "magic";
+    private static final String CATEGORY_OBI = "obi";
     private static final Set<String> ALLOWED_CHANNELS = Set.of("xianyu", "tieba", "other");
     private static final Set<String> ALLOWED_CATEGORIES = Set.of("magic", "obi");
     private static final Set<String> ALLOWED_SORT_TYPES = Set.of("buyTimeDesc", "buyPriceDesc");
@@ -70,17 +75,17 @@ public class InventoryItemServiceImpl extends ServiceImpl<InventoryItemMapper, I
         PriceRange priceRange = parsePriceRange(query.getPriceRange());
         String sortType = normalizeSortType(query.getSortType());
         String keyword = normalizeNullableText(query.getKeyword());
+        String category = normalizeCategoryFilter(query.getCategory());
 
         Page<InventoryItem> page = new Page<>(pageNo, pageSize);
         LambdaQueryWrapper<InventoryItem> pageWrapper = new LambdaQueryWrapper<InventoryItem>()
             .eq(InventoryItem::getUserId, userId)
             .eq(InventoryItem::getStatus, STATUS_UNSOLD);
-        applyWarehouseFilters(pageWrapper, keyword, priceRange, sortType);
+        applyWarehouseFilters(pageWrapper, keyword, category, priceRange, sortType);
 
         Page<InventoryItem> resultPage = baseMapper.selectPage(page, pageWrapper);
 
-        InventorySummaryVO summary = new InventorySummaryVO();
-        summary.setTotalBuyPrice(sumWarehouseBuyPrice(userId, keyword, priceRange));
+        InventorySummaryVO summary = calculateSummary(userId, keyword, priceRange, category);
 
         InventoryPageResponseVO response = new InventoryPageResponseVO();
         response.setItems(resultPage.getRecords().stream().map(this::toListItem).toList());
@@ -193,14 +198,48 @@ public class InventoryItemServiceImpl extends ServiceImpl<InventoryItemMapper, I
         baseMapper.deleteById(item.getId());
     }
 
+    @Override
+    @Transactional
+    public void batchDeleteInventoryItems(Long userId, InventoryBatchDeleteRequest request) {
+        List<Long> itemIds = normalizeIds(request.getIds());
+        for (int index = 0; index < itemIds.size(); index++) {
+            deleteInventoryItem(userId, itemIds.get(index), buildBatchRequestId(request.getRequestId(), "batchDeleteInventory", itemIds.get(index), index));
+        }
+    }
+
+    @Override
+    @Transactional
+    public void batchTogglePublic(Long userId, InventoryBatchTogglePublicRequest request) {
+        List<Long> itemIds = normalizeIds(request.getIds());
+        for (int index = 0; index < itemIds.size(); index++) {
+            Long itemId = itemIds.get(index);
+            InventoryItem item = getOwnedInventoryItem(userId, itemId);
+            ensureUnsold(item, "Only unsold inventory items can be toggled here");
+            publicPostService.toggleSourceItemPublicPost(
+                userId,
+                item.getId(),
+                item.getBuyPrice(),
+                item.getBuyTime(),
+                "sell",
+                item.getRemark(),
+                item.getImageFileId(),
+                buildBatchRequestId(request.getRequestId(), "batchToggleInventoryPublic", itemId, index)
+            );
+        }
+    }
+
     private void applyWarehouseFilters(
         LambdaQueryWrapper<InventoryItem> queryWrapper,
         String keyword,
+        String category,
         PriceRange priceRange,
         String sortType
     ) {
         if (keyword != null) {
             queryWrapper.like(InventoryItem::getItemName, keyword);
+        }
+        if (category != null) {
+            queryWrapper.eq(InventoryItem::getCategory, category);
         }
         if (priceRange != null) {
             if (priceRange.minPrice() != null) {
@@ -217,12 +256,27 @@ public class InventoryItemServiceImpl extends ServiceImpl<InventoryItemMapper, I
         queryWrapper.orderByDesc(InventoryItem::getBuyTime).orderByDesc(InventoryItem::getCreatedAt);
     }
 
-    private BigDecimal sumWarehouseBuyPrice(Long userId, String keyword, PriceRange priceRange) {
+    private InventorySummaryVO calculateSummary(Long userId, String keyword, PriceRange priceRange, String category) {
+        InventorySummaryVO summary = new InventorySummaryVO();
+        // 总买入价为全量不过滤分类
+        summary.setTotalBuyPrice(sumWarehouseBuyPrice(userId, keyword, priceRange, null));
+        // obi/magic 分类小计始终是全量分类值
+        summary.setObiCount(countWarehouseItems(userId, keyword, priceRange, CATEGORY_OBI));
+        summary.setObiBuyPrice(sumWarehouseBuyPrice(userId, keyword, priceRange, CATEGORY_OBI));
+        summary.setMagicCount(countWarehouseItems(userId, keyword, priceRange, CATEGORY_MAGIC));
+        summary.setMagicBuyPrice(sumWarehouseBuyPrice(userId, keyword, priceRange, CATEGORY_MAGIC));
+        return summary;
+    }
+
+    private BigDecimal sumWarehouseBuyPrice(Long userId, String keyword, PriceRange priceRange, String category) {
         QueryWrapper<InventoryItem> summaryWrapper = new QueryWrapper<>();
         summaryWrapper.select("COALESCE(SUM(buy_price), 0)");
         summaryWrapper.eq("user_id", userId).eq("status", STATUS_UNSOLD);
         if (keyword != null) {
             summaryWrapper.like("item_name", keyword);
+        }
+        if (category != null) {
+            summaryWrapper.eq("category", category);
         }
         if (priceRange != null) {
             if (priceRange.minPrice() != null) {
@@ -241,6 +295,23 @@ public class InventoryItemServiceImpl extends ServiceImpl<InventoryItemMapper, I
             return value;
         }
         return new BigDecimal(raw.toString());
+    }
+
+    private int countWarehouseItems(Long userId, String keyword, PriceRange priceRange, String category) {
+        QueryWrapper<InventoryItem> countWrapper = new QueryWrapper<>();
+        countWrapper.eq("user_id", userId).eq("status", STATUS_UNSOLD).eq("category", category);
+        if (keyword != null) {
+            countWrapper.like("item_name", keyword);
+        }
+        if (priceRange != null) {
+            if (priceRange.minPrice() != null) {
+                countWrapper.ge("buy_price", priceRange.minPrice());
+            }
+            if (priceRange.maxPrice() != null) {
+                countWrapper.le("buy_price", priceRange.maxPrice());
+            }
+        }
+        return Math.toIntExact(baseMapper.selectCount(countWrapper));
     }
 
     private InventoryItem getOwnedInventoryItem(Long userId, Long itemId) {
@@ -328,6 +399,16 @@ public class InventoryItemServiceImpl extends ServiceImpl<InventoryItemMapper, I
         return sortType;
     }
 
+    private String normalizeCategoryFilter(String category) {
+        if (category == null || category.isBlank()) {
+            return null;
+        }
+        if (!ALLOWED_CATEGORIES.contains(category)) {
+            throw new BusinessException(BusinessCode.PARAM_INVALID, "Unsupported category");
+        }
+        return category;
+    }
+
     private PriceRange parsePriceRange(String priceRange) {
         if (priceRange == null || priceRange.isBlank()) {
             return null;
@@ -381,6 +462,21 @@ public class InventoryItemServiceImpl extends ServiceImpl<InventoryItemMapper, I
         }
         String normalized = value.trim();
         return normalized.isEmpty() ? null : normalized;
+    }
+
+    private List<Long> normalizeIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            throw new BusinessException(BusinessCode.PARAM_INVALID, "ids cannot be empty");
+        }
+        return new ArrayList<>(new LinkedHashSet<>(ids));
+    }
+
+    private String buildBatchRequestId(String baseRequestId, String action, Long itemId, int index) {
+        String prefix = normalizeNullableText(baseRequestId);
+        if (prefix == null) {
+            prefix = action + "-" + System.currentTimeMillis();
+        }
+        return prefix + "-" + index + "-" + itemId;
     }
 
     private InventoryListItemVO toListItem(InventoryItem item) {

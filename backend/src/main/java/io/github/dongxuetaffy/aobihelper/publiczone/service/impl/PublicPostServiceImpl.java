@@ -70,7 +70,9 @@ public class PublicPostServiceImpl extends ServiceImpl<PublicPostMapper, PublicP
         long pageNo = normalizePageNo(query.getPageNo());
         long pageSize = normalizePageSize(query.getPageSize());
         String scope = normalizeScope(query.getScope(), currentUserId);
+        String direction = normalizeOptionalDirection(query.getDirection());
         String category = normalizeCategory(query.getCategory());
+        String channel = normalizeChannel(query.getChannel());
         String keyword = normalizeNullableText(query.getKeyword());
         String sortType = normalizeSortType(query.getSortType());
         PriceRange priceRange = resolvePriceRange(query.getPriceRange(), query.getMinPrice(), query.getMaxPrice());
@@ -81,11 +83,17 @@ public class PublicPostServiceImpl extends ServiceImpl<PublicPostMapper, PublicP
         if (SCOPE_MINE.equals(scope)) {
             wrapper.eq(PublicPost::getUserId, currentUserId);
         }
+        if (direction != null) {
+            wrapper.eq(PublicPost::getDirection, direction);
+        }
         if (keyword != null) {
             wrapper.like(PublicPost::getItemName, keyword);
         }
         if (category != null) {
             wrapper.eq(PublicPost::getCategory, category);
+        }
+        if (channel != null) {
+            wrapper.eq(PublicPost::getChannel, channel);
         }
         if (priceRange != null) {
             if (priceRange.minPrice() != null) {
@@ -399,6 +407,28 @@ public class PublicPostServiceImpl extends ServiceImpl<PublicPostMapper, PublicP
             throw new BusinessException(BusinessCode.PARAM_INVALID, "Unsupported category");
         }
         return category;
+    }
+
+    private String normalizeChannel(String channel) {
+        if (channel == null || channel.isBlank()) {
+            return null;
+        }
+        if (!ALLOWED_CHANNELS.contains(channel)) {
+            // Invalid channel value: treat as no filter instead of throwing
+            return null;
+        }
+        return channel;
+    }
+
+    private String normalizeOptionalDirection(String direction) {
+        if (direction == null || direction.isBlank()) {
+            return null;
+        }
+        if (!ALLOWED_DIRECTIONS.contains(direction)) {
+            // Invalid direction value: treat as no filter instead of throwing
+            return null;
+        }
+        return direction;
     }
 
     private void validatePostFields(LocalDate tradeTime, String direction, String channel, String category) {

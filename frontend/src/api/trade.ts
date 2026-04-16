@@ -4,6 +4,7 @@ import type {
   TradeDetailApiResponse,
   TradeUpsertApiResponse,
   TradeTogglePublicApiResponse,
+  TradeBatchActionRequest,
   TradeUpsertRequest,
   TradeTogglePublicRequest,
   TradePageQuery,
@@ -38,5 +39,15 @@ export const deleteTradeItem = async (id: number, requestId: string) => {
 
 export const toggleTradePublic = async (id: number, payload: TradeTogglePublicRequest) => {
   const { data } = await http.post<TradeTogglePublicApiResponse>(`/trade/${id}/toggle-public`, payload)
+  return data
+}
+
+export const batchDeleteTradeItems = async (payload: TradeBatchActionRequest) => {
+  const { data } = await http.post<TradeUpsertApiResponse>('/trade/batch-delete', payload)
+  return data
+}
+
+export const batchToggleTradePublic = async (payload: TradeBatchActionRequest) => {
+  const { data } = await http.post<TradeUpsertApiResponse>('/trade/batch-toggle-public', payload)
   return data
 }

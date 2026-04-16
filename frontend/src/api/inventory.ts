@@ -4,6 +4,7 @@ import type {
   InventoryDetailApiResponse,
   InventoryUpsertApiResponse,
   InventoryTogglePublicApiResponse,
+  InventoryBatchActionRequest,
   InventoryUpsertRequest,
   InventoryMarkSoldRequest,
   InventoryTogglePublicRequest,
@@ -44,5 +45,15 @@ export const deleteInventoryItem = async (id: number, requestId: string) => {
 
 export const toggleInventoryPublic = async (id: number, payload: InventoryTogglePublicRequest) => {
   const { data } = await http.post<InventoryTogglePublicApiResponse>(`/inventory/${id}/toggle-public`, payload)
+  return data
+}
+
+export const batchDeleteInventoryItems = async (payload: InventoryBatchActionRequest) => {
+  const { data } = await http.post<InventoryUpsertApiResponse>('/inventory/batch-delete', payload)
+  return data
+}
+
+export const batchToggleInventoryPublic = async (payload: InventoryBatchActionRequest) => {
+  const { data } = await http.post<InventoryUpsertApiResponse>('/inventory/batch-toggle-public', payload)
   return data
 }

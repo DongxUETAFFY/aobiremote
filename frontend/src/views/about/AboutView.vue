@@ -7,7 +7,7 @@
       <p class="about-card__eyebrow">Aobi Helper Web</p>
       <h1 class="about-card__title">关于项目</h1>
       <p class="about-card__desc">
-        面向独立部署的奥比岛助手 Web 版，支持仓库管理、盈亏统计与公开交易。
+        奥比岛助手 Web 版，支持仓库管理、盈亏统计与公开交易。
       </p>
     </section>
 

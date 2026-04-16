@@ -4,6 +4,8 @@ public class PublicPostPageQuery {
     private Long pageNo;
     private Long pageSize;
     private String scope;
+    private String direction;
+    private String channel;
     private String keyword;
     private String category;
     private String priceRange;
@@ -41,6 +43,22 @@ public class PublicPostPageQuery {
 
     public void setKeyword(String keyword) {
         this.keyword = keyword;
+    }
+
+    public String getDirection() {
+        return direction;
+    }
+
+    public void setDirection(String direction) {
+        this.direction = direction;
+    }
+
+    public String getChannel() {
+        return channel;
+    }
+
+    public void setChannel(String channel) {
+        this.channel = channel;
     }
 
     public String getCategory() {

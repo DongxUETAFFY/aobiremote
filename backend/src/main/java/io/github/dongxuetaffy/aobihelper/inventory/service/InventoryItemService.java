@@ -2,6 +2,8 @@ package io.github.dongxuetaffy.aobihelper.inventory.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import io.github.dongxuetaffy.aobihelper.inventory.dto.InventoryMarkSoldRequest;
+import io.github.dongxuetaffy.aobihelper.inventory.dto.InventoryBatchDeleteRequest;
+import io.github.dongxuetaffy.aobihelper.inventory.dto.InventoryBatchTogglePublicRequest;
 import io.github.dongxuetaffy.aobihelper.inventory.dto.InventoryPageQuery;
 import io.github.dongxuetaffy.aobihelper.inventory.dto.InventoryTogglePublicRequest;
 import io.github.dongxuetaffy.aobihelper.inventory.dto.InventoryUpsertRequest;
@@ -25,4 +27,8 @@ public interface InventoryItemService extends IService<InventoryItem> {
     InventoryTogglePublicVO togglePublic(Long userId, Long itemId, InventoryTogglePublicRequest request);
 
     void deleteInventoryItem(Long userId, Long itemId, String requestId);
+
+    void batchDeleteInventoryItems(Long userId, InventoryBatchDeleteRequest request);
+
+    void batchTogglePublic(Long userId, InventoryBatchTogglePublicRequest request);
 }

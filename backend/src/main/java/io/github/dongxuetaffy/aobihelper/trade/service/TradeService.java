@@ -1,5 +1,7 @@
 package io.github.dongxuetaffy.aobihelper.trade.service;
 
+import io.github.dongxuetaffy.aobihelper.trade.dto.TradeBatchDeleteRequest;
+import io.github.dongxuetaffy.aobihelper.trade.dto.TradeBatchTogglePublicRequest;
 import io.github.dongxuetaffy.aobihelper.trade.dto.TradePageQuery;
 import io.github.dongxuetaffy.aobihelper.trade.dto.TradeTogglePublicRequest;
 import io.github.dongxuetaffy.aobihelper.trade.dto.TradeUpsertRequest;
@@ -20,4 +22,8 @@ public interface TradeService {
     void deleteTrade(Long userId, Long itemId, String requestId);
 
     TradeTogglePublicVO togglePublic(Long userId, Long itemId, TradeTogglePublicRequest request);
+
+    void batchDeleteTradeItems(Long userId, TradeBatchDeleteRequest request);
+
+    void batchTogglePublic(Long userId, TradeBatchTogglePublicRequest request);
 }

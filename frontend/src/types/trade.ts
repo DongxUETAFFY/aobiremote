@@ -27,6 +27,10 @@ export interface TradeSummary {
   totalSellAmount: string
   totalProfit: string
   totalLoss: string
+  obiCount: number
+  obiBuyAmount: string
+  magicCount: number
+  magicBuyAmount: string
 }
 
 export interface TradePageResponse {
@@ -85,7 +89,13 @@ export interface TradePageQuery {
   pageNo?: number
   pageSize?: number
   scope?: 'all' | 'profit' | 'loss'
+  category?: TradeCategory
   sortType?: SortType
+}
+
+export interface TradeBatchActionRequest {
+  ids: number[]
+  requestId?: string
 }
 
 export type TradeUpsertApiResponse = ApiResponse<{ itemId: number }>

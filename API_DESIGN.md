@@ -548,6 +548,7 @@ Authorization: Bearer <token>
 | `pageNo` | 否 | 页码 |
 | `pageSize` | 否 | 每页大小 |
 | `scope` | 否 | `all / mine` |
+| `direction` | 否 | `buy / sell`（买入 / 卖出） |
 | `keyword` | 否 | 搜索名称 |
 | `category` | 否 | `magic / obi` |
 | `priceRange` | 否 | 预设价格区间 |

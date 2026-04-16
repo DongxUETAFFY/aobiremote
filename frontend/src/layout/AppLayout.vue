@@ -36,13 +36,6 @@ const handleLogout = async () => {
         <div class="layout-hero__copy">
           <p class="layout-hero__eyebrow">Aobi Helper Web</p>
           <h1>{{ currentTitle }}</h1>
-          <p class="layout-hero__desc">
-            面向独立部署的奥比岛助手 Web 项目，当前阶段先完成路由、布局与核心页面骨架。
-          </p>
-        </div>
-        <div class="layout-hero__meta">
-          <span>前端：Vue 3 + Vite + Element Plus</span>
-          <span>后端：Spring Boot + MyBatis-Plus + Sa-Token</span>
         </div>
       </div>
     </header>

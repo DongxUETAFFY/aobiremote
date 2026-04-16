@@ -7,6 +7,10 @@ public class TradeSummaryVO {
     private BigDecimal totalSellAmount;
     private BigDecimal totalProfit;
     private BigDecimal totalLoss;
+    private Integer obiCount;
+    private BigDecimal obiBuyAmount;
+    private Integer magicCount;
+    private BigDecimal magicBuyAmount;
 
     public BigDecimal getTotalBuyAmount() {
         return totalBuyAmount;
@@ -38,5 +42,37 @@ public class TradeSummaryVO {
 
     public void setTotalLoss(BigDecimal totalLoss) {
         this.totalLoss = totalLoss;
+    }
+
+    public Integer getObiCount() {
+        return obiCount;
+    }
+
+    public void setObiCount(Integer obiCount) {
+        this.obiCount = obiCount;
+    }
+
+    public BigDecimal getObiBuyAmount() {
+        return obiBuyAmount;
+    }
+
+    public void setObiBuyAmount(BigDecimal obiBuyAmount) {
+        this.obiBuyAmount = obiBuyAmount;
+    }
+
+    public Integer getMagicCount() {
+        return magicCount;
+    }
+
+    public void setMagicCount(Integer magicCount) {
+        this.magicCount = magicCount;
+    }
+
+    public BigDecimal getMagicBuyAmount() {
+        return magicBuyAmount;
+    }
+
+    public void setMagicBuyAmount(BigDecimal magicBuyAmount) {
+        this.magicBuyAmount = magicBuyAmount;
     }
 }

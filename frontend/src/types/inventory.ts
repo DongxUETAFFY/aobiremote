@@ -22,6 +22,10 @@ export interface InventoryListItem {
 
 export interface InventorySummary {
   totalBuyPrice: string
+  obiCount: number
+  obiBuyPrice: string
+  magicCount: number
+  magicBuyPrice: string
 }
 
 export interface InventoryPageResponse {
@@ -85,8 +89,14 @@ export interface InventoryPageQuery {
   pageNo?: number
   pageSize?: number
   keyword?: string
+  category?: InventoryCategory
   priceRange?: string
   sortType?: SortType
+}
+
+export interface InventoryBatchActionRequest {
+  ids: number[]
+  requestId?: string
 }
 
 export type InventoryUpsertApiResponse = ApiResponse<{ itemId: number }>

@@ -16,6 +16,8 @@ import io.github.dongxuetaffy.aobihelper.publiczone.service.PublicPostService;
 import io.github.dongxuetaffy.aobihelper.publiczone.vo.PublicSourceToggleVO;
 import io.github.dongxuetaffy.aobihelper.stats.entity.UserStats;
 import io.github.dongxuetaffy.aobihelper.stats.mapper.UserStatsMapper;
+import io.github.dongxuetaffy.aobihelper.trade.dto.TradeBatchDeleteRequest;
+import io.github.dongxuetaffy.aobihelper.trade.dto.TradeBatchTogglePublicRequest;
 import io.github.dongxuetaffy.aobihelper.trade.dto.TradePageQuery;
 import io.github.dongxuetaffy.aobihelper.trade.dto.TradeTogglePublicRequest;
 import io.github.dongxuetaffy.aobihelper.trade.dto.TradeUpsertRequest;
@@ -30,6 +32,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import org.springframework.stereotype.Service;
@@ -38,9 +41,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class TradeServiceImpl extends ServiceImpl<InventoryItemMapper, InventoryItem> implements TradeService {
     private static final String STATUS_SOLD = "sold";
+    private static final String CATEGORY_MAGIC = "magic";
+    private static final String CATEGORY_OBI = "obi";
     private static final String SCOPE_ALL = "all";
     private static final String SCOPE_PROFIT = "profit";
     private static final String SCOPE_LOSS = "loss";
+    private static final String SORT_SELL_TIME_DESC = "sellTimeDesc";
+    private static final String SORT_PROFIT_DESC = "profitDesc";
     private static final Set<String> ALLOWED_CHANNELS = Set.of("xianyu", "tieba", "other");
     private static final Set<String> ALLOWED_CATEGORIES = Set.of("magic", "obi");
     private static final long DEFAULT_PAGE_NO = 1L;
@@ -75,17 +82,20 @@ public class TradeServiceImpl extends ServiceImpl<InventoryItemMapper, Inventory
         long pageNo = normalizePageNo(query.getPageNo());
         long pageSize = normalizePageSize(query.getPageSize());
         String scope = normalizeScope(query.getScope());
+        String category = normalizeCategoryFilter(query.getCategory());
+        String sortType = normalizeSortType(query.getSortType());
 
         Page<InventoryItem> page = new Page<>(pageNo, pageSize);
         LambdaQueryWrapper<InventoryItem> pageWrapper = new LambdaQueryWrapper<InventoryItem>()
             .eq(InventoryItem::getUserId, userId)
             .eq(InventoryItem::getStatus, STATUS_SOLD);
         applyScopeFilter(pageWrapper, scope);
-        pageWrapper.orderByDesc(InventoryItem::getSellTime).orderByDesc(InventoryItem::getUpdatedAt);
+        applyCategoryFilter(pageWrapper, category);
+        applySort(pageWrapper, sortType);
 
         Page<InventoryItem> resultPage = inventoryItemMapper.selectPage(page, pageWrapper);
 
-        TradeSummaryVO summary = calculateSummary(userId, scope);
+        TradeSummaryVO summary = calculateSummary(userId, scope, category);
 
         TradePageResponseVO response = new TradePageResponseVO();
         response.setItems(resultPage.getRecords().stream().map(this::toListItem).toList());
@@ -194,6 +204,35 @@ public class TradeServiceImpl extends ServiceImpl<InventoryItemMapper, Inventory
         return new TradeTogglePublicVO(result.getPublicPosted(), result.getPostId());
     }
 
+    @Override
+    @Transactional
+    public void batchDeleteTradeItems(Long userId, TradeBatchDeleteRequest request) {
+        List<Long> itemIds = normalizeIds(request.getIds());
+        for (int index = 0; index < itemIds.size(); index++) {
+            deleteTrade(userId, itemIds.get(index), buildBatchRequestId(request.getRequestId(), "batchDeleteTrade", itemIds.get(index), index));
+        }
+    }
+
+    @Override
+    @Transactional
+    public void batchTogglePublic(Long userId, TradeBatchTogglePublicRequest request) {
+        List<Long> itemIds = normalizeIds(request.getIds());
+        for (int index = 0; index < itemIds.size(); index++) {
+            Long itemId = itemIds.get(index);
+            InventoryItem item = getOwnedSoldItem(userId, itemId);
+            publicPostService.toggleSourceItemPublicPost(
+                userId,
+                item.getId(),
+                item.getSellPrice() != null ? item.getSellPrice() : item.getBuyPrice(),
+                item.getSellTime() != null ? item.getSellTime() : item.getBuyTime(),
+                item.getProfitAmount() != null && item.getProfitAmount().compareTo(BigDecimal.ZERO) >= 0 ? "sell" : "buy",
+                item.getRemark(),
+                item.getImageFileId(),
+                buildBatchRequestId(request.getRequestId(), "batchToggleTradePublic", itemId, index)
+            );
+        }
+    }
+
     private void applyScopeFilter(LambdaQueryWrapper<InventoryItem> wrapper, String scope) {
         if (SCOPE_PROFIT.equals(scope)) {
             wrapper.apply("profit_amount > 0");
@@ -202,12 +241,47 @@ public class TradeServiceImpl extends ServiceImpl<InventoryItemMapper, Inventory
         }
     }
 
-    private TradeSummaryVO calculateSummary(Long userId, String scope) {
+    private void applyCategoryFilter(LambdaQueryWrapper<InventoryItem> wrapper, String category) {
+        if (category != null) {
+            wrapper.eq(InventoryItem::getCategory, category);
+        }
+    }
+
+    private void applySort(LambdaQueryWrapper<InventoryItem> wrapper, String sortType) {
+        if (SORT_PROFIT_DESC.equals(sortType)) {
+            wrapper.orderByDesc(InventoryItem::getProfitAmount)
+                .orderByDesc(InventoryItem::getSellTime)
+                .orderByDesc(InventoryItem::getUpdatedAt);
+            return;
+        }
+        wrapper.orderByDesc(InventoryItem::getSellTime).orderByDesc(InventoryItem::getUpdatedAt);
+    }
+
+    private TradeSummaryVO calculateSummary(Long userId, String scope, String category) {
         TradeSummaryVO summary = new TradeSummaryVO();
-        summary.setTotalBuyAmount(sumByScope(userId, scope, "COALESCE(SUM(buy_price), 0)"));
-        summary.setTotalSellAmount(sumByScope(userId, scope, "COALESCE(SUM(sell_price), 0)"));
-        summary.setTotalProfit(sumByScope(userId, scope, "COALESCE(SUM(CASE WHEN profit_amount > 0 THEN profit_amount ELSE 0 END), 0)"));
-        summary.setTotalLoss(sumByScope(userId, scope, "COALESCE(SUM(CASE WHEN profit_amount < 0 THEN ABS(profit_amount) ELSE 0 END), 0)"));
+        if (category != null) {
+            // 分类筛选时，所有金额都过滤该分类
+            summary.setTotalBuyAmount(sumByScopeAndCategory(userId, scope, category, "COALESCE(SUM(buy_price), 0)"));
+            summary.setTotalSellAmount(sumByScopeAndCategory(userId, scope, category, "COALESCE(SUM(sell_price), 0)"));
+            summary.setTotalProfit(sumByScopeAndCategory(userId, scope, category, "COALESCE(SUM(CASE WHEN profit_amount > 0 THEN profit_amount ELSE 0 END), 0)"));
+            summary.setTotalLoss(sumByScopeAndCategory(userId, scope, category, "COALESCE(SUM(CASE WHEN profit_amount < 0 THEN ABS(profit_amount) ELSE 0 END), 0)"));
+            // obi/magic 也随 category 过滤（选中某分类时，该分类有值，另一个分类为0）
+            summary.setObiCount(countByScopeAndCategory(userId, scope, CATEGORY_OBI));
+            summary.setObiBuyAmount(sumByScopeAndCategory(userId, scope, CATEGORY_OBI, "COALESCE(SUM(buy_price), 0)"));
+            summary.setMagicCount(countByScopeAndCategory(userId, scope, CATEGORY_MAGIC));
+            summary.setMagicBuyAmount(sumByScopeAndCategory(userId, scope, CATEGORY_MAGIC, "COALESCE(SUM(buy_price), 0)"));
+        } else {
+            // 全量（不过滤分类）
+            summary.setTotalBuyAmount(sumByScope(userId, scope, "COALESCE(SUM(buy_price), 0)"));
+            summary.setTotalSellAmount(sumByScope(userId, scope, "COALESCE(SUM(sell_price), 0)"));
+            summary.setTotalProfit(sumByScope(userId, scope, "COALESCE(SUM(CASE WHEN profit_amount > 0 THEN profit_amount ELSE 0 END), 0)"));
+            summary.setTotalLoss(sumByScope(userId, scope, "COALESCE(SUM(CASE WHEN profit_amount < 0 THEN ABS(profit_amount) ELSE 0 END), 0)"));
+            // obi/magic 各自全量分类小计
+            summary.setObiCount(countByScopeAndCategory(userId, scope, CATEGORY_OBI));
+            summary.setObiBuyAmount(sumByScopeAndCategory(userId, scope, CATEGORY_OBI, "COALESCE(SUM(buy_price), 0)"));
+            summary.setMagicCount(countByScopeAndCategory(userId, scope, CATEGORY_MAGIC));
+            summary.setMagicBuyAmount(sumByScopeAndCategory(userId, scope, CATEGORY_MAGIC, "COALESCE(SUM(buy_price), 0)"));
+        }
         return summary;
     }
 
@@ -291,6 +365,26 @@ public class TradeServiceImpl extends ServiceImpl<InventoryItemMapper, Inventory
         return scope;
     }
 
+    private String normalizeSortType(String sortType) {
+        if (sortType == null || sortType.isBlank()) {
+            return SORT_SELL_TIME_DESC;
+        }
+        if (!SORT_SELL_TIME_DESC.equals(sortType) && !SORT_PROFIT_DESC.equals(sortType)) {
+            throw new BusinessException(BusinessCode.PARAM_INVALID, "Unsupported sort type");
+        }
+        return sortType;
+    }
+
+    private String normalizeCategoryFilter(String category) {
+        if (category == null || category.isBlank()) {
+            return null;
+        }
+        if (!ALLOWED_CATEGORIES.contains(category)) {
+            throw new BusinessException(BusinessCode.PARAM_INVALID, "Unsupported category");
+        }
+        return category;
+    }
+
     private String normalizeRequiredText(String value) {
         String normalized = value == null ? "" : value.trim();
         if (normalized.isEmpty()) {
@@ -305,6 +399,21 @@ public class TradeServiceImpl extends ServiceImpl<InventoryItemMapper, Inventory
         }
         String normalized = value.trim();
         return normalized.isEmpty() ? null : normalized;
+    }
+
+    private List<Long> normalizeIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            throw new BusinessException(BusinessCode.PARAM_INVALID, "ids cannot be empty");
+        }
+        return new ArrayList<>(new LinkedHashSet<>(ids));
+    }
+
+    private String buildBatchRequestId(String baseRequestId, String action, Long itemId, int index) {
+        String prefix = normalizeNullableText(baseRequestId);
+        if (prefix == null) {
+            prefix = action + "-" + System.currentTimeMillis();
+        }
+        return prefix + "-" + index + "-" + itemId;
     }
 
     private void cleanupLinkedPublicPosts(InventoryItem item) {
@@ -362,11 +471,16 @@ public class TradeServiceImpl extends ServiceImpl<InventoryItemMapper, Inventory
         QueryWrapper<InventoryItem> wrapper = new QueryWrapper<>();
         wrapper.select(sqlExpr);
         wrapper.eq("user_id", userId).eq("status", STATUS_SOLD);
-        if (SCOPE_PROFIT.equals(scope)) {
-            wrapper.apply("profit_amount > 0");
-        } else if (SCOPE_LOSS.equals(scope)) {
-            wrapper.apply("profit_amount < 0");
-        }
+        applyScopeCondition(wrapper, scope);
+        List<Object> results = inventoryItemMapper.selectObjs(wrapper);
+        return results.isEmpty() ? BigDecimal.ZERO : toBigDecimal(results.get(0));
+    }
+
+    private BigDecimal sumByScopeAndCategory(Long userId, String scope, String category, String sqlExpr) {
+        QueryWrapper<InventoryItem> wrapper = new QueryWrapper<>();
+        wrapper.select(sqlExpr);
+        wrapper.eq("user_id", userId).eq("status", STATUS_SOLD).eq("category", category);
+        applyScopeCondition(wrapper, scope);
         List<Object> results = inventoryItemMapper.selectObjs(wrapper);
         return results.isEmpty() ? BigDecimal.ZERO : toBigDecimal(results.get(0));
     }
@@ -387,6 +501,21 @@ public class TradeServiceImpl extends ServiceImpl<InventoryItemMapper, Inventory
                     .eq(InventoryItem::getStatus, status)
             )
         );
+    }
+
+    private int countByScopeAndCategory(Long userId, String scope, String category) {
+        QueryWrapper<InventoryItem> wrapper = new QueryWrapper<>();
+        wrapper.eq("user_id", userId).eq("status", STATUS_SOLD).eq("category", category);
+        applyScopeCondition(wrapper, scope);
+        return Math.toIntExact(inventoryItemMapper.selectCount(wrapper));
+    }
+
+    private void applyScopeCondition(QueryWrapper<InventoryItem> wrapper, String scope) {
+        if (SCOPE_PROFIT.equals(scope)) {
+            wrapper.apply("profit_amount > 0");
+        } else if (SCOPE_LOSS.equals(scope)) {
+            wrapper.apply("profit_amount < 0");
+        }
     }
 
     private TradeListItemVO toListItem(InventoryItem item) {

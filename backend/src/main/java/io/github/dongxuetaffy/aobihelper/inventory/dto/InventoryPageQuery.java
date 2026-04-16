@@ -4,6 +4,7 @@ public class InventoryPageQuery {
     private Long pageNo;
     private Long pageSize;
     private String keyword;
+    private String category;
     private String priceRange;
     private String sortType;
 
@@ -37,6 +38,14 @@ public class InventoryPageQuery {
 
     public void setPriceRange(String priceRange) {
         this.priceRange = priceRange;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
     }
 
     public String getSortType() {

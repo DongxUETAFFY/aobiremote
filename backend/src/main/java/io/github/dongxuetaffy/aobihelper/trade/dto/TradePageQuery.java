@@ -1,12 +1,11 @@
 package io.github.dongxuetaffy.aobihelper.trade.dto;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-
 public class TradePageQuery {
     private Long pageNo;
     private Long pageSize;
     private String scope;
+    private String category;
+    private String sortType;
 
     public Long getPageNo() {
         return pageNo;
@@ -30,5 +29,21 @@ public class TradePageQuery {
 
     public void setScope(String scope) {
         this.scope = scope;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
+    }
+
+    public String getSortType() {
+        return sortType;
+    }
+
+    public void setSortType(String sortType) {
+        this.sortType = sortType;
     }
 }

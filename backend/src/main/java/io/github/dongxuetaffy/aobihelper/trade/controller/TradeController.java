@@ -3,6 +3,8 @@ package io.github.dongxuetaffy.aobihelper.trade.controller;
 import cn.dev33.satoken.annotation.SaCheckLogin;
 import cn.dev33.satoken.stp.StpUtil;
 import io.github.dongxuetaffy.aobihelper.common.api.ApiResponse;
+import io.github.dongxuetaffy.aobihelper.trade.dto.TradeBatchDeleteRequest;
+import io.github.dongxuetaffy.aobihelper.trade.dto.TradeBatchTogglePublicRequest;
 import io.github.dongxuetaffy.aobihelper.trade.dto.TradePageQuery;
 import io.github.dongxuetaffy.aobihelper.trade.dto.TradeTogglePublicRequest;
 import io.github.dongxuetaffy.aobihelper.trade.dto.TradeUpsertRequest;
@@ -71,6 +73,18 @@ public class TradeController {
         @Valid @RequestBody TradeTogglePublicRequest request
     ) {
         return ApiResponse.success("Public status toggled", tradeService.togglePublic(currentUserId(), id, request));
+    }
+
+    @PostMapping("/batch-delete")
+    public ApiResponse<Void> batchDeleteTrade(@Valid @RequestBody TradeBatchDeleteRequest request) {
+        tradeService.batchDeleteTradeItems(currentUserId(), request);
+        return ApiResponse.success("Trade records deleted", null);
+    }
+
+    @PostMapping("/batch-toggle-public")
+    public ApiResponse<Void> batchToggleTradePublic(@Valid @RequestBody TradeBatchTogglePublicRequest request) {
+        tradeService.batchTogglePublic(currentUserId(), request);
+        return ApiResponse.success("Trade public status toggled", null);
     }
 
     private Long currentUserId() {
