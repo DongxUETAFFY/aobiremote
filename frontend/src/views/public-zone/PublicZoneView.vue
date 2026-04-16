@@ -201,34 +201,21 @@ const handleFileChange = async (event: Event) => {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) return
+  uploadingImage.value = true
 
   try {
     compressionResult.value = await compressImageBeforeUpload(file)
-    ElMessage.success('图片已处理完成，可以保存了')
-  } catch (error: any) {
-    compressionResult.value = null
-    ElMessage.error(error?.message || '图片处理失败')
-  } finally {
-    input.value = ''
-  }
-}
-
-const handleUploadImage = async () => {
-  if (!compressionResult.value) {
-    ElMessage.warning('请先选择图片')
-    return
-  }
-
-  uploadingImage.value = true
-  try {
     const resp = await uploadImage(compressionResult.value.file, 'public')
     form.imageFileId = resp.data.fileId
     uploadProgress.value = `上传成功，fileId: ${resp.data.fileId}`
-    ElMessage.success('图片上传成功')
+    ElMessage.success('图片已上传成功')
   } catch (error: any) {
-    ElMessage.error(error?.response?.data?.message || '图片上传失败')
+    compressionResult.value = null
+    uploadProgress.value = ''
+    ElMessage.error(error?.response?.data?.message || error?.message || '图片上传失败')
   } finally {
     uploadingImage.value = false
+    input.value = ''
   }
 }
 
@@ -299,7 +286,10 @@ const handleToggleUntrusted = async (item: PublicPostListItem) => {
 
 const channelLabel = (ch: PublicPostChannel) => channelOptions.find((o) => o.value === ch)?.label || ch
 const categoryLabel = (cat: PublicPostCategory) => categoryOptions.find((o) => o.value === cat)?.label || cat
-const formatDate = (dateStr: string) => dateStr || '-'
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return '-'
+  return dateStr.replace('T', ' ').replace(/\.\d+$/, '').replace(/Z$/, '')
+}
 const directionLabel = (direction: 'buy' | 'sell') => (direction === 'buy' ? '买入' : '卖出')
 
 // Back to top
@@ -456,15 +446,16 @@ onBeforeUnmount(() => {
                 <span>{{ formatDate(item.createdAt) }}</span>
               </div>
               <div class="public-zone-item__untrusted-row">
-                <el-button
+                <button
                   v-if="authStore.isAuthenticated && !item.mine"
-                  size="small"
-                  type="warning"
+                  type="button"
+                  class="public-zone-item__untrusted-badge public-zone-item__untrusted-trigger"
+                  :class="{ 'is-active': item.untrusted }"
                   @click="handleToggleUntrusted(item)"
                 >
-                  {{ item.untrusted ? '取消不可信' : '不可信' }}
-                </el-button>
-                <span class="public-zone-item__untrusted-badge">
+                  不可信 × {{ item.untrustedCount }}
+                </button>
+                <span v-else class="public-zone-item__untrusted-badge">
                   不可信 × {{ item.untrustedCount }}
                 </span>
               </div>
@@ -563,10 +554,7 @@ onBeforeUnmount(() => {
               <div v-else class="public-zone-form__upload-placeholder">选择图片</div>
             </div>
             <div class="public-zone-form__upload-controls">
-              <el-button @click="handlePickImage">选择图片</el-button>
-              <el-button :disabled="!compressionResult" :loading="uploadingImage" @click="handleUploadImage">
-                上传图片
-              </el-button>
+              <el-button :loading="uploadingImage" @click="handlePickImage">选择图片</el-button>
               <p v-if="compressionSummary" class="public-zone-form__upload-info">{{ compressionSummary }}</p>
               <p v-if="uploadProgress" class="public-zone-form__upload-progress">{{ uploadProgress }}</p>
             </div>
@@ -800,6 +788,7 @@ onBeforeUnmount(() => {
   padding: 4px 10px;
   border-radius: 8px;
   font-size: 13px;
+  border: 0;
 }
 
 .public-zone-item__footer {
@@ -827,6 +816,21 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.public-zone-item__untrusted-trigger {
+  cursor: pointer;
+  transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+
+.public-zone-item__untrusted-trigger:hover {
+  background: rgba(207, 93, 117, 0.2);
+  transform: translateY(-1px);
+}
+
+.public-zone-item__untrusted-trigger.is-active {
+  background: rgba(207, 93, 117, 0.2);
+  color: #a33860;
 }
 
 .public-zone-item__actions {

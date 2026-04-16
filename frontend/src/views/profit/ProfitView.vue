@@ -20,6 +20,7 @@ import type {
   TradeCategory,
   TradeChannel,
   TradeListItem,
+  TradeSummary,
   TradeUpsertRequest,
 } from '@/types/trade'
 
@@ -27,9 +28,20 @@ import type {
 const loading = ref(false)
 const items = ref<TradeListItem[]>([])
 const totalCount = ref(0)
-const summary = ref({ totalProfit: '0.00', totalLoss: '0.00', totalBuyAmount: '0.00', totalSellAmount: '0.00' })
+const summary = ref<TradeSummary>({
+  totalProfit: '0.00',
+  totalLoss: '0.00',
+  totalBuyAmount: '0.00',
+  totalSellAmount: '0.00',
+  obiCount: 0,
+  obiBuyAmount: '0.00',
+  magicCount: 0,
+  magicBuyAmount: '0.00',
+})
 const currentScope = ref<'all' | 'profit' | 'loss'>('all')
 const currentPage = ref(1)
+const currentCategory = ref<TradeCategory | ''>('')
+const filterKeyword = ref('')
 
 // Form dialog
 const dialogVisible = ref(false)
@@ -75,16 +87,6 @@ const compressionSummary = computed(() => {
   return `原图 ${formatFileSize(originalSize)}，压缩后 ${formatFileSize(compressedSize)}`
 })
 
-// Public dialog
-const publicDialogVisible = ref(false)
-const publicForm = reactive({
-  price: 0,
-  tradeTime: '',
-  direction: 'sell' as 'buy' | 'sell',
-  remark: '',
-})
-const publicItemId = ref<number | null>(null)
-const publicSourceImageFileId = ref('')
 const publicLoading = ref(false)
 
 // --- Methods ---
@@ -92,7 +94,13 @@ const loadData = async (page = 1) => {
   loading.value = true
   currentPage.value = page
   try {
-    const resp = await getTradePage({ pageNo: page, pageSize: 20, scope: currentScope.value })
+    const resp = await getTradePage({
+      pageNo: page,
+      pageSize: 20,
+      keyword: filterKeyword.value.trim() || undefined,
+      scope: currentScope.value,
+      category: currentCategory.value || undefined,
+    })
     items.value = resp.data.items
     totalCount.value = resp.data.totalCount
     summary.value = resp.data.summary
@@ -105,6 +113,20 @@ const loadData = async (page = 1) => {
 
 const handleScopeChange = () => {
   currentPage.value = 1
+  loadData(1)
+}
+
+const handleCategoryFilter = (category: TradeCategory) => {
+  currentCategory.value = currentCategory.value === category ? '' : category
+  loadData(1)
+}
+
+const handleKeywordSearch = () => {
+  loadData(1)
+}
+
+const handleKeywordClear = () => {
+  filterKeyword.value = ''
   loadData(1)
 }
 
@@ -160,33 +182,20 @@ const handleFileChange = async (event: Event) => {
   const file = input.files?.[0]
   if (!file) return
 
-  try {
-    compressionResult.value = await compressImageBeforeUpload(file)
-    ElMessage.success('图片已处理完成，可以保存了')
-  } catch (error: any) {
-    compressionResult.value = null
-    ElMessage.error(error?.message || '图片处理失败')
-  } finally {
-    input.value = ''
-  }
-}
-
-const handleUploadImage = async () => {
-  if (!compressionResult.value) {
-    ElMessage.warning('请先选择图片')
-    return
-  }
-
   uploadingImage.value = true
   try {
+    compressionResult.value = await compressImageBeforeUpload(file)
     const resp = await uploadImage(compressionResult.value.file, 'public')
     form.imageFileId = resp.data.fileId
     uploadProgress.value = `上传成功，fileId: ${resp.data.fileId}`
-    ElMessage.success('图片上传成功')
+    ElMessage.success('图片已上传成功')
   } catch (error: any) {
-    ElMessage.error(error?.response?.data?.message || '图片上传失败')
+    compressionResult.value = null
+    uploadProgress.value = ''
+    ElMessage.error(error?.response?.data?.message || error?.message || '图片上传失败')
   } finally {
     uploadingImage.value = false
+    input.value = ''
   }
 }
 
@@ -248,22 +257,7 @@ const handleDelete = async (item: TradeListItem) => {
   }
 }
 
-const handleOpenPublicDialog = (item: TradeListItem) => {
-  publicItemId.value = item.id
-  publicForm.price = item.sellPrice || item.buyPrice
-  publicForm.tradeTime = item.sellTime || item.buyTime
-  publicForm.direction = (item.sellPrice || 0) >= (item.buyPrice || 0) ? 'sell' : 'buy'
-  publicForm.remark = item.remark || ''
-  publicSourceImageFileId.value = item.imageFileId || ''
-  publicDialogVisible.value = true
-}
-
 const handlePublicAction = async (item: TradeListItem) => {
-  if (!item.publicPosted) {
-    handleOpenPublicDialog(item)
-    return
-  }
-
   publicLoading.value = true
   try {
     await toggleTradePublic(item.id, {
@@ -274,35 +268,8 @@ const handlePublicAction = async (item: TradeListItem) => {
       imageFileId: item.imageFileId || undefined,
       requestId: `req_${Date.now()}`,
     })
-    ElMessage.success('已取消公开')
+    ElMessage.success(item.publicPosted ? '已取消公开' : '已公开')
     await loadData(currentPage.value)
-  } catch (error: any) {
-    ElMessage.error(error?.response?.data?.message || '操作失败')
-  } finally {
-    publicLoading.value = false
-  }
-}
-
-const handleTogglePublic = async () => {
-  if (!publicForm.price || publicForm.price <= 0) {
-    ElMessage.warning('请输入有效的价格')
-    return
-  }
-  if (!publicForm.tradeTime) {
-    ElMessage.warning('请选择交易时间')
-    return
-  }
-
-  publicLoading.value = true
-  try {
-    await toggleTradePublic(publicItemId.value!, {
-      ...publicForm,
-      imageFileId: publicSourceImageFileId.value || undefined,
-      requestId: `req_${Date.now()}`,
-    })
-    ElMessage.success('已更新公开状态')
-    publicDialogVisible.value = false
-    await loadData()
   } catch (error: any) {
     ElMessage.error(error?.response?.data?.message || '操作失败')
   } finally {
@@ -321,6 +288,8 @@ const profitDisplay = computed(() => {
   const net = profit - loss
   return { profit, loss, net }
 })
+
+const summaryTotalCount = computed(() => summary.value.obiCount + summary.value.magicCount)
 
 // Back to top
 const showBackToTop = ref(false)
@@ -362,7 +331,7 @@ onBeforeUnmount(() => {
         </div>
         <div class="profit-summary__stat">
           <p class="profit-summary__stat-label">已卖出</p>
-          <p class="profit-summary__stat-value">{{ totalCount }} 件</p>
+          <p class="profit-summary__stat-value">{{ summaryTotalCount }} 件</p>
         </div>
       </div>
       <div class="profit-summary__actions">
@@ -372,6 +341,58 @@ onBeforeUnmount(() => {
           <el-radio-button label="loss">亏损</el-radio-button>
         </el-radio-group>
         <el-button type="primary" @click="openAddDialog">+ 新增记录</el-button>
+      </div>
+    </section>
+
+    <section class="profit-category-summary ah-glass-card ah-page-section">
+      <div class="profit-category-summary__status">
+        当前筛选：{{ currentCategory ? categoryLabel(currentCategory) : '全部分类' }}
+        <span v-if="currentCategory">，列表显示 {{ totalCount }} 件</span>
+      </div>
+      <div class="profit-category-summary__grid">
+        <div
+          class="profit-category-summary__item"
+          :class="{ 'is-active': currentCategory === 'obi' }"
+        >
+          <p class="profit-category-summary__label">奥比总价格</p>
+          <button
+            type="button"
+            class="profit-category-summary__price"
+            @click="handleCategoryFilter('obi')"
+          >
+            ¥{{ summary.obiBuyAmount }}
+          </button>
+          <p class="profit-category-summary__count">奥比总件数 {{ summary.obiCount }} 件</p>
+        </div>
+        <div
+          class="profit-category-summary__item"
+          :class="{ 'is-active': currentCategory === 'magic' }"
+        >
+          <p class="profit-category-summary__label">魔力总价格</p>
+          <button
+            type="button"
+            class="profit-category-summary__price"
+            @click="handleCategoryFilter('magic')"
+          >
+            ¥{{ summary.magicBuyAmount }}
+          </button>
+          <p class="profit-category-summary__count">魔力总件数 {{ summary.magicCount }} 件</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="profit-search ah-glass-card ah-page-section">
+      <div class="profit-search__group">
+        <span class="profit-search__label">名称</span>
+        <el-input
+          v-model="filterKeyword"
+          class="profit-search__input"
+          clearable
+          placeholder="按物品名称筛选"
+          @keyup.enter="handleKeywordSearch"
+          @clear="handleKeywordClear"
+        />
+        <el-button @click="handleKeywordSearch">搜索</el-button>
       </div>
     </section>
 
@@ -527,10 +548,7 @@ onBeforeUnmount(() => {
               <div v-else class="profit-form__upload-placeholder">选择图片</div>
             </div>
             <div class="profit-form__upload-controls">
-              <el-button @click="handlePickImage">选择图片</el-button>
-              <el-button :disabled="!compressionResult" :loading="uploadingImage" @click="handleUploadImage">
-                上传图片
-              </el-button>
+              <el-button :loading="uploadingImage" @click="handlePickImage">选择图片</el-button>
               <p v-if="compressionSummary" class="profit-form__upload-info">{{ compressionSummary }}</p>
               <p v-if="uploadProgress" class="profit-form__upload-progress">{{ uploadProgress }}</p>
             </div>
@@ -541,36 +559,6 @@ onBeforeUnmount(() => {
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="formLoading" @click="handleSubmitForm">保存</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- Toggle Public Dialog -->
-    <el-dialog v-model="publicDialogVisible" title="公开设置" width="420px">
-      <el-form label-position="top" class="profit-form">
-        <el-form-item label="价格">
-          <el-input-number v-model="publicForm.price" :min="0.01" :precision="2" :step="1" />
-        </el-form-item>
-        <el-form-item label="交易时间">
-          <el-date-picker
-            v-model="publicForm.tradeTime"
-            type="date"
-            placeholder="选择日期"
-            value-format="YYYY-MM-DD"
-          />
-        </el-form-item>
-        <el-form-item label="交易方向">
-          <el-radio-group v-model="publicForm.direction">
-            <el-radio-button label="buy">买入</el-radio-button>
-            <el-radio-button label="sell">卖出</el-radio-button>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="publicForm.remark" placeholder="可选" maxlength="15" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="publicDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="publicLoading" @click="handleTogglePublic">保存</el-button>
       </template>
     </el-dialog>
 
@@ -636,6 +624,90 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.profit-category-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.profit-category-summary__status {
+  color: #8d7080;
+  font-size: 13px;
+}
+
+.profit-category-summary__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.profit-category-summary__item {
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255, 250, 247, 0.78);
+  border: 1px solid rgba(216, 168, 183, 0.16);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.profit-category-summary__item.is-active {
+  border-color: rgba(207, 93, 117, 0.35);
+  box-shadow: 0 10px 24px rgba(207, 93, 117, 0.12);
+  transform: translateY(-1px);
+}
+
+.profit-category-summary__label {
+  margin: 0;
+  color: #b27f93;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.profit-category-summary__price {
+  margin-top: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ah-title);
+  font-size: 26px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.profit-category-summary__price:hover {
+  color: #cf5d75;
+}
+
+.profit-category-summary__count {
+  margin: 8px 0 0;
+  color: var(--ah-text);
+  font-size: 14px;
+}
+
+.profit-search {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.profit-search__group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.profit-search__label {
+  color: #b27f93;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.profit-search__input {
+  flex: 1;
+  min-width: 220px;
 }
 
 /* Loading */
@@ -818,6 +890,14 @@ onBeforeUnmount(() => {
 @media (max-width: 600px) {
   .profit-summary__stats {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .profit-category-summary__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profit-search__input {
+    min-width: 0;
   }
 
   .profit-item {

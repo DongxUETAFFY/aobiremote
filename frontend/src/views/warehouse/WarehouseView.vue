@@ -10,6 +10,7 @@ import {
   type CompressionResult,
 } from '@/utils/image-upload'
 import {
+  batchToggleInventoryPublic,
   createInventoryItem,
   deleteInventoryItem,
   getInventoryPage,
@@ -21,6 +22,7 @@ import type {
   InventoryCategory,
   InventoryChannel,
   InventoryListItem,
+  InventorySummary,
   InventoryUpsertRequest,
 } from '@/types/inventory'
 
@@ -28,8 +30,17 @@ import type {
 const loading = ref(false)
 const items = ref<InventoryListItem[]>([])
 const totalCount = ref(0)
-const totalBuyPrice = ref('0.00')
+const summary = ref<InventorySummary>({
+  totalBuyPrice: '0.00',
+  obiCount: 0,
+  obiBuyPrice: '0.00',
+  magicCount: 0,
+  magicBuyPrice: '0.00',
+})
 const currentPage = ref(1)
+const selectedIds = ref<number[]>([])
+const currentCategory = ref<InventoryCategory | ''>('')
+const filterKeyword = ref('')
 
 // Form dialog
 const dialogVisible = ref(false)
@@ -82,27 +93,47 @@ const soldForm = reactive({
 const soldItemId = ref<number | null>(null)
 const soldLoading = ref(false)
 
-// Toggle public dialog
-const publicDialogVisible = ref(false)
-const publicForm = reactive({
-  price: 0,
-  tradeTime: '',
-  direction: 'sell' as 'buy' | 'sell',
-  remark: '',
-})
-const publicItemId = ref<number | null>(null)
-const publicSourceImageFileId = ref('')
 const publicLoading = ref(false)
+const batchPublicLoading = ref(false)
+
+const isBatchPublicSelectable = (item: InventoryListItem) =>
+  item.status === 'unsold' && !item.publicPosted
+
+const selectableItemIds = computed(() =>
+  items.value.filter(isBatchPublicSelectable).map((item) => item.id),
+)
+
+const selectedSelectableIds = computed(() =>
+  selectedIds.value.filter((id) => selectableItemIds.value.includes(id)),
+)
+
+const hasSelectableItems = computed(() => selectableItemIds.value.length > 0)
+
+const allSelectableChecked = computed(
+  () =>
+    selectableItemIds.value.length > 0 &&
+    selectableItemIds.value.every((id) => selectedSelectableIds.value.includes(id)),
+)
+
+const summaryTotalCount = computed(() => summary.value.obiCount + summary.value.magicCount)
 
 // --- Methods ---
 const loadData = async (page = 1) => {
   loading.value = true
   currentPage.value = page
   try {
-    const resp = await getInventoryPage({ pageNo: page, pageSize: 20 })
+    const resp = await getInventoryPage({
+      pageNo: page,
+      pageSize: 20,
+      keyword: filterKeyword.value.trim() || undefined,
+      category: currentCategory.value || undefined,
+    })
     items.value = resp.data.items
     totalCount.value = resp.data.totalCount
-    totalBuyPrice.value = resp.data.summary.totalBuyPrice
+    summary.value = resp.data.summary
+    selectedIds.value = selectedIds.value.filter((id) =>
+      items.value.some((item) => item.id === id && isBatchPublicSelectable(item)),
+    )
   } catch (error: any) {
     ElMessage.error(error?.response?.data?.message || '加载失败')
   } finally {
@@ -113,6 +144,21 @@ const loadData = async (page = 1) => {
 const handlePageChange = (page: number) => {
   loadData(page)
   window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+const handleCategoryFilter = (category: InventoryCategory) => {
+  currentCategory.value = currentCategory.value === category ? '' : category
+  selectedIds.value = []
+  loadData(1)
+}
+
+const handleKeywordSearch = () => {
+  loadData(1)
+}
+
+const handleKeywordClear = () => {
+  filterKeyword.value = ''
+  loadData(1)
 }
 
 const openAddDialog = () => {
@@ -157,32 +203,20 @@ const handleFileChange = async (event: Event) => {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) return
-  try {
-    compressionResult.value = await compressImageBeforeUpload(file)
-    ElMessage.success('图片已处理完成，可以保存了')
-  } catch (error: any) {
-    compressionResult.value = null
-    ElMessage.error(error?.message || '图片处理失败')
-  } finally {
-    input.value = ''
-  }
-}
-
-const handleUploadImage = async () => {
-  if (!compressionResult.value) {
-    ElMessage.warning('请先选择图片')
-    return
-  }
   uploadingImage.value = true
   try {
+    compressionResult.value = await compressImageBeforeUpload(file)
     const resp = await uploadImage(compressionResult.value.file, 'private')
     form.imageFileId = resp.data.fileId
     uploadProgress.value = `上传成功，fileId: ${resp.data.fileId}`
-    ElMessage.success('图片上传成功')
+    ElMessage.success('图片已上传成功')
   } catch (error: any) {
-    ElMessage.error(error?.response?.data?.message || '图片上传失败')
+    compressionResult.value = null
+    uploadProgress.value = ''
+    ElMessage.error(error?.response?.data?.message || error?.message || '图片上传失败')
   } finally {
     uploadingImage.value = false
+    input.value = ''
   }
 }
 
@@ -271,22 +305,37 @@ const handleMarkSold = async () => {
   }
 }
 
-const handleOpenPublicDialog = (item: InventoryListItem) => {
-  publicItemId.value = item.id
-  publicForm.price = item.buyPrice
-  publicForm.tradeTime = item.buyTime || new Date().toISOString().split('T')[0]
-  publicForm.direction = 'sell'
-  publicForm.remark = item.remark || ''
-  publicSourceImageFileId.value = item.imageFileId || ''
-  publicDialogVisible.value = true
+const handleToggleSelectAll = (checked: boolean | string | number) => {
+  if (!checked) {
+    selectedIds.value = []
+    return
+  }
+  selectedIds.value = [...selectableItemIds.value]
 }
 
-const handlePublicAction = async (item: InventoryListItem) => {
-  if (!item.publicPosted) {
-    handleOpenPublicDialog(item)
+const handleBatchPublic = async () => {
+  if (!selectedSelectableIds.value.length) {
+    ElMessage.warning('请选择未卖出且未公开的物品')
     return
   }
 
+  batchPublicLoading.value = true
+  try {
+    await batchToggleInventoryPublic({
+      ids: selectedSelectableIds.value,
+      requestId: `req_${Date.now()}`,
+    })
+    ElMessage.success(`已批量公开 ${selectedSelectableIds.value.length} 件物品`)
+    selectedIds.value = []
+    await loadData(currentPage.value)
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message || '批量公开失败')
+  } finally {
+    batchPublicLoading.value = false
+  }
+}
+
+const handlePublicAction = async (item: InventoryListItem) => {
   publicLoading.value = true
   try {
     await toggleInventoryPublic(item.id, {
@@ -297,33 +346,7 @@ const handlePublicAction = async (item: InventoryListItem) => {
       imageFileId: item.imageFileId || undefined,
       requestId: `req_${Date.now()}`,
     })
-    ElMessage.success('已取消公开')
-    await loadData(currentPage.value)
-  } catch (error: any) {
-    ElMessage.error(error?.response?.data?.message || '操作失败')
-  } finally {
-    publicLoading.value = false
-  }
-}
-
-const handleTogglePublic = async () => {
-  if (!publicForm.price || publicForm.price <= 0) {
-    ElMessage.warning('请输入有效的价格')
-    return
-  }
-  if (!publicForm.tradeTime) {
-    ElMessage.warning('请选择交易时间')
-    return
-  }
-  publicLoading.value = true
-  try {
-    await toggleInventoryPublic(publicItemId.value!, {
-      ...publicForm,
-      imageFileId: publicSourceImageFileId.value || undefined,
-      requestId: `req_${Date.now()}`,
-    })
-    ElMessage.success('已更新公开状态')
-    publicDialogVisible.value = false
+    ElMessage.success(item.publicPosted ? '已取消公开' : '已公开')
     await loadData(currentPage.value)
   } catch (error: any) {
     ElMessage.error(error?.response?.data?.message || '操作失败')
@@ -365,12 +388,64 @@ onBeforeUnmount(() => {
     <section class="warehouse-summary ah-glass-card ah-page-section">
       <div class="warehouse-summary__info">
         <p class="warehouse-summary__label">当前仓库</p>
-        <h2 class="warehouse-summary__count">{{ totalCount }} 件宝贝</h2>
-        <p class="warehouse-summary__total">累计买入 ¥{{ totalBuyPrice }}</p>
+        <h2 class="warehouse-summary__count">{{ summaryTotalCount }} 件宝贝</h2>
+        <p class="warehouse-summary__total">累计买入 ¥{{ summary.totalBuyPrice }}</p>
+        <p class="warehouse-summary__filter">
+          当前筛选：{{ currentCategory ? categoryLabel(currentCategory) : '全部分类' }}
+          <span v-if="currentCategory">，列表显示 {{ totalCount }} 件</span>
+        </p>
       </div>
-      <el-button type="primary" size="large" @click="openAddDialog">
-        + 新增记录
-      </el-button>
+      <div class="warehouse-summary__actions">
+        <el-button type="primary" size="large" @click="openAddDialog">
+          + 新增记录
+        </el-button>
+      </div>
+    </section>
+
+    <section class="warehouse-category-summary ah-glass-card ah-page-section">
+      <div
+        class="warehouse-category-summary__item"
+        :class="{ 'is-active': currentCategory === 'obi' }"
+      >
+        <p class="warehouse-category-summary__label">奥比总价格</p>
+        <button
+          type="button"
+          class="warehouse-category-summary__price"
+          @click="handleCategoryFilter('obi')"
+        >
+          ¥{{ summary.obiBuyPrice }}
+        </button>
+        <p class="warehouse-category-summary__count">奥比总件数 {{ summary.obiCount }} 件</p>
+      </div>
+      <div
+        class="warehouse-category-summary__item"
+        :class="{ 'is-active': currentCategory === 'magic' }"
+      >
+        <p class="warehouse-category-summary__label">魔力总价格</p>
+        <button
+          type="button"
+          class="warehouse-category-summary__price"
+          @click="handleCategoryFilter('magic')"
+        >
+          ¥{{ summary.magicBuyPrice }}
+        </button>
+        <p class="warehouse-category-summary__count">魔力总件数 {{ summary.magicCount }} 件</p>
+      </div>
+    </section>
+
+    <section class="warehouse-search ah-glass-card ah-page-section">
+      <div class="warehouse-search__group">
+        <span class="warehouse-search__label">名称</span>
+        <el-input
+          v-model="filterKeyword"
+          class="warehouse-search__input"
+          clearable
+          placeholder="按物品名称筛选"
+          @keyup.enter="handleKeywordSearch"
+          @clear="handleKeywordClear"
+        />
+        <el-button @click="handleKeywordSearch">搜索</el-button>
+      </div>
     </section>
 
     <!-- Loading State -->
@@ -387,6 +462,30 @@ onBeforeUnmount(() => {
 
     <!-- Item List -->
     <div v-else class="warehouse-list">
+      <section class="warehouse-batch ah-glass-card ah-page-section">
+        <div class="warehouse-batch__toolbar">
+          <div class="warehouse-batch__main">
+            <el-checkbox
+              :model-value="allSelectableChecked"
+              :disabled="!hasSelectableItems"
+              @change="handleToggleSelectAll"
+            >
+              全选本页可公开物品
+            </el-checkbox>
+            <span class="warehouse-batch__count">已选 {{ selectedSelectableIds.length }} 件</span>
+          </div>
+          <el-button
+            type="warning"
+            :disabled="!selectedSelectableIds.length"
+            :loading="batchPublicLoading"
+            @click="handleBatchPublic"
+          >
+            批量公开 {{ selectedSelectableIds.length ? `(${selectedSelectableIds.length})` : '' }}
+          </el-button>
+        </div>
+        <p class="warehouse-batch__hint">仅支持选择未卖出且未公开的物品，避免误触取消公开。</p>
+      </section>
+
       <!-- Top Pagination -->
       <div class="warehouse-pagination ah-glass-card">
         <PaginationBar
@@ -402,6 +501,16 @@ onBeforeUnmount(() => {
         :key="item.id"
         class="warehouse-item ah-glass-card ah-page-section"
       >
+        <div class="warehouse-item__selection">
+          <el-checkbox
+            v-model="selectedIds"
+            :label="item.id"
+            :disabled="!isBatchPublicSelectable(item)"
+          >
+            {{ isBatchPublicSelectable(item) ? '加入批量公开' : item.publicPosted ? '已公开，不可批量公开' : '已卖出，不可批量公开' }}
+          </el-checkbox>
+        </div>
+
         <div class="warehouse-item__thumb">
           <SquareImagePreview :file-id="item.imageFileId" empty-text="无图" />
         </div>
@@ -527,14 +636,7 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="warehouse-form__upload-controls">
-              <el-button @click="handlePickImage">选择图片</el-button>
-              <el-button
-                :disabled="!compressionResult"
-                :loading="uploadingImage"
-                @click="handleUploadImage"
-              >
-                上传图片
-              </el-button>
+              <el-button :loading="uploadingImage" @click="handlePickImage">选择图片</el-button>
               <p v-if="compressionSummary" class="warehouse-form__upload-info">
                 {{ compressionSummary }}
               </p>
@@ -575,36 +677,6 @@ onBeforeUnmount(() => {
       </template>
     </el-dialog>
 
-    <!-- Toggle Public Dialog -->
-    <el-dialog v-model="publicDialogVisible" title="公开设置" width="420px">
-      <el-form label-position="top" class="warehouse-form">
-        <el-form-item label="价格">
-          <el-input-number v-model="publicForm.price" :min="0.01" :precision="2" :step="1" />
-        </el-form-item>
-        <el-form-item label="交易时间">
-          <el-date-picker
-            v-model="publicForm.tradeTime"
-            type="date"
-            placeholder="选择日期"
-            value-format="YYYY-MM-DD"
-          />
-        </el-form-item>
-        <el-form-item label="交易方向">
-          <el-radio-group v-model="publicForm.direction">
-            <el-radio-button label="buy">买入</el-radio-button>
-            <el-radio-button label="sell">卖出</el-radio-button>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="publicForm.remark" placeholder="可选" maxlength="15" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="publicDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="publicLoading" @click="handleTogglePublic">保存</el-button>
-      </template>
-    </el-dialog>
-
     <!-- Floating Action Buttons -->
     <transition name="fab">
       <button v-if="showBackToTop" class="fab fab--top" type="button" title="回顶部" @click="scrollToTop">
@@ -633,6 +705,13 @@ onBeforeUnmount(() => {
   gap: 20px;
 }
 
+.warehouse-summary__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .warehouse-summary__label {
   margin: 0 0 4px;
   color: #b27f93;
@@ -651,6 +730,119 @@ onBeforeUnmount(() => {
 .warehouse-summary__total {
   margin: 4px 0 0;
   color: var(--ah-text);
+}
+
+.warehouse-summary__filter {
+  margin: 6px 0 0;
+  color: #8d7080;
+  font-size: 13px;
+}
+
+.warehouse-category-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.warehouse-category-summary__item {
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255, 250, 247, 0.78);
+  border: 1px solid rgba(216, 168, 183, 0.16);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.warehouse-category-summary__item.is-active {
+  border-color: rgba(207, 93, 117, 0.35);
+  box-shadow: 0 10px 24px rgba(207, 93, 117, 0.12);
+  transform: translateY(-1px);
+}
+
+.warehouse-category-summary__label {
+  margin: 0;
+  color: #b27f93;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.warehouse-category-summary__price {
+  margin-top: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ah-title);
+  font-size: 26px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.warehouse-category-summary__price:hover {
+  color: #cf5d75;
+}
+
+.warehouse-category-summary__count {
+  margin: 8px 0 0;
+  color: var(--ah-text);
+  font-size: 14px;
+}
+
+.warehouse-batch {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
+}
+
+.warehouse-batch__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.warehouse-batch__main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.warehouse-batch__count {
+  color: var(--ah-title);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.warehouse-batch__hint {
+  margin: 0;
+  color: #8d7080;
+  font-size: 13px;
+}
+
+.warehouse-search {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.warehouse-search__group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.warehouse-search__label {
+  color: #b27f93;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.warehouse-search__input {
+  flex: 1;
+  min-width: 220px;
 }
 
 /* Loading */
@@ -705,6 +897,11 @@ onBeforeUnmount(() => {
   display: flex;
   gap: 20px;
   align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.warehouse-item__selection {
+  width: 100%;
 }
 
 .warehouse-item__thumb {
@@ -872,6 +1069,27 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 600px) {
+  .warehouse-category-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .warehouse-summary__actions {
+    width: 100%;
+  }
+
+  .warehouse-summary__actions :deep(.el-button) {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .warehouse-batch__toolbar {
+    align-items: stretch;
+  }
+
+  .warehouse-search__input {
+    min-width: 0;
+  }
+
   .warehouse-item {
     flex-direction: column;
   }

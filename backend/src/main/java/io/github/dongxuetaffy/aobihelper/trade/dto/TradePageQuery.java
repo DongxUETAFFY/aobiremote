@@ -3,6 +3,7 @@ package io.github.dongxuetaffy.aobihelper.trade.dto;
 public class TradePageQuery {
     private Long pageNo;
     private Long pageSize;
+    private String keyword;
     private String scope;
     private String category;
     private String sortType;
@@ -21,6 +22,14 @@ public class TradePageQuery {
 
     public void setPageSize(Long pageSize) {
         this.pageSize = pageSize;
+    }
+
+    public String getKeyword() {
+        return keyword;
+    }
+
+    public void setKeyword(String keyword) {
+        this.keyword = keyword;
     }
 
     public String getScope() {

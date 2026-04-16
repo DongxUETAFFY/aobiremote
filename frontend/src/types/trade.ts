@@ -88,6 +88,7 @@ export interface TradeTogglePublicRequest {
 export interface TradePageQuery {
   pageNo?: number
   pageSize?: number
+  keyword?: string
   scope?: 'all' | 'profit' | 'loss'
   category?: TradeCategory
   sortType?: SortType

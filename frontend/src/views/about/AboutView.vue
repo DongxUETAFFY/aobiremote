@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { h } from 'vue'
-import { ElMessageBox } from 'element-plus'
+import { ElImage, ElMessageBox } from 'element-plus'
 
 type AboutItemKey = 'version' | 'creator' | 'log' | 'reward'
 
@@ -142,27 +142,19 @@ const openRewardPopup = async () => {
   await ElMessageBox({
     title: '赞赏作者',
     message: h('div', { class: 'about-popup-reward' }, [
-      h('img', {
+      h(ElImage, {
         class: 'about-popup-reward__image',
         src: rewardImageUrl,
-        alt: '赞赏码',
+        previewSrcList: [rewardImageUrl],
+        previewTeleported: true,
+        fit: 'cover',
       }),
       h(
         'p',
         {
           class: 'about-popup-reward__tip',
         },
-        '点击图片可在新窗口打开原图，长按图片或另存为即可保存赞赏码。',
-      ),
-      h(
-        'a',
-        {
-          class: 'about-popup-reward__link',
-          href: rewardImageUrl,
-          target: '_blank',
-          rel: 'noreferrer',
-        },
-        '打开原图',
+        '点击赞赏码小图可直接预览大图，交互与物品列表点击图片查看大图一致。',
       ),
     ]),
     showCancelButton: false,
@@ -372,6 +364,8 @@ const openItem = async (key: AboutItemKey) => {
   background: rgba(255, 254, 248, 0.98);
   border: 1px solid rgba(172, 204, 150, 0.64);
   box-shadow: inset 0 0 0 4px rgba(239, 246, 232, 0.72);
+  overflow: hidden;
+  cursor: zoom-in;
 }
 
 .about-popup-reward__tip {
@@ -380,18 +374,6 @@ const openItem = async (key: AboutItemKey) => {
   color: #694e5d;
   font-size: 14px;
   line-height: 1.7;
-}
-
-.about-popup-reward__link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 108px;
-  padding: 10px 16px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(172, 204, 150, 0.64);
-  color: #6b5660;
 }
 
 @media (max-width: 768px) {

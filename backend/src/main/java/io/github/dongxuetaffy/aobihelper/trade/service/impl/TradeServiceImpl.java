@@ -81,6 +81,7 @@ public class TradeServiceImpl extends ServiceImpl<InventoryItemMapper, Inventory
     public TradePageResponseVO pageTradeItems(Long userId, TradePageQuery query) {
         long pageNo = normalizePageNo(query.getPageNo());
         long pageSize = normalizePageSize(query.getPageSize());
+        String keyword = normalizeNullableText(query.getKeyword());
         String scope = normalizeScope(query.getScope());
         String category = normalizeCategoryFilter(query.getCategory());
         String sortType = normalizeSortType(query.getSortType());
@@ -89,13 +90,14 @@ public class TradeServiceImpl extends ServiceImpl<InventoryItemMapper, Inventory
         LambdaQueryWrapper<InventoryItem> pageWrapper = new LambdaQueryWrapper<InventoryItem>()
             .eq(InventoryItem::getUserId, userId)
             .eq(InventoryItem::getStatus, STATUS_SOLD);
+        applyKeywordFilter(pageWrapper, keyword);
         applyScopeFilter(pageWrapper, scope);
         applyCategoryFilter(pageWrapper, category);
         applySort(pageWrapper, sortType);
 
         Page<InventoryItem> resultPage = inventoryItemMapper.selectPage(page, pageWrapper);
 
-        TradeSummaryVO summary = calculateSummary(userId, scope, category);
+        TradeSummaryVO summary = calculateSummary(userId, keyword, scope, category);
 
         TradePageResponseVO response = new TradePageResponseVO();
         response.setItems(resultPage.getRecords().stream().map(this::toListItem).toList());
@@ -241,6 +243,12 @@ public class TradeServiceImpl extends ServiceImpl<InventoryItemMapper, Inventory
         }
     }
 
+    private void applyKeywordFilter(LambdaQueryWrapper<InventoryItem> wrapper, String keyword) {
+        if (keyword != null) {
+            wrapper.like(InventoryItem::getItemName, keyword);
+        }
+    }
+
     private void applyCategoryFilter(LambdaQueryWrapper<InventoryItem> wrapper, String category) {
         if (category != null) {
             wrapper.eq(InventoryItem::getCategory, category);
@@ -257,30 +265,30 @@ public class TradeServiceImpl extends ServiceImpl<InventoryItemMapper, Inventory
         wrapper.orderByDesc(InventoryItem::getSellTime).orderByDesc(InventoryItem::getUpdatedAt);
     }
 
-    private TradeSummaryVO calculateSummary(Long userId, String scope, String category) {
+    private TradeSummaryVO calculateSummary(Long userId, String keyword, String scope, String category) {
         TradeSummaryVO summary = new TradeSummaryVO();
         if (category != null) {
             // 分类筛选时，所有金额都过滤该分类
-            summary.setTotalBuyAmount(sumByScopeAndCategory(userId, scope, category, "COALESCE(SUM(buy_price), 0)"));
-            summary.setTotalSellAmount(sumByScopeAndCategory(userId, scope, category, "COALESCE(SUM(sell_price), 0)"));
-            summary.setTotalProfit(sumByScopeAndCategory(userId, scope, category, "COALESCE(SUM(CASE WHEN profit_amount > 0 THEN profit_amount ELSE 0 END), 0)"));
-            summary.setTotalLoss(sumByScopeAndCategory(userId, scope, category, "COALESCE(SUM(CASE WHEN profit_amount < 0 THEN ABS(profit_amount) ELSE 0 END), 0)"));
+            summary.setTotalBuyAmount(sumByScopeAndCategory(userId, scope, keyword, category, "COALESCE(SUM(buy_price), 0)"));
+            summary.setTotalSellAmount(sumByScopeAndCategory(userId, scope, keyword, category, "COALESCE(SUM(sell_price), 0)"));
+            summary.setTotalProfit(sumByScopeAndCategory(userId, scope, keyword, category, "COALESCE(SUM(CASE WHEN profit_amount > 0 THEN profit_amount ELSE 0 END), 0)"));
+            summary.setTotalLoss(sumByScopeAndCategory(userId, scope, keyword, category, "COALESCE(SUM(CASE WHEN profit_amount < 0 THEN ABS(profit_amount) ELSE 0 END), 0)"));
             // obi/magic 也随 category 过滤（选中某分类时，该分类有值，另一个分类为0）
-            summary.setObiCount(countByScopeAndCategory(userId, scope, CATEGORY_OBI));
-            summary.setObiBuyAmount(sumByScopeAndCategory(userId, scope, CATEGORY_OBI, "COALESCE(SUM(buy_price), 0)"));
-            summary.setMagicCount(countByScopeAndCategory(userId, scope, CATEGORY_MAGIC));
-            summary.setMagicBuyAmount(sumByScopeAndCategory(userId, scope, CATEGORY_MAGIC, "COALESCE(SUM(buy_price), 0)"));
+            summary.setObiCount(countByScopeAndCategory(userId, scope, keyword, CATEGORY_OBI));
+            summary.setObiBuyAmount(sumByScopeAndCategory(userId, scope, keyword, CATEGORY_OBI, "COALESCE(SUM(buy_price), 0)"));
+            summary.setMagicCount(countByScopeAndCategory(userId, scope, keyword, CATEGORY_MAGIC));
+            summary.setMagicBuyAmount(sumByScopeAndCategory(userId, scope, keyword, CATEGORY_MAGIC, "COALESCE(SUM(buy_price), 0)"));
         } else {
             // 全量（不过滤分类）
-            summary.setTotalBuyAmount(sumByScope(userId, scope, "COALESCE(SUM(buy_price), 0)"));
-            summary.setTotalSellAmount(sumByScope(userId, scope, "COALESCE(SUM(sell_price), 0)"));
-            summary.setTotalProfit(sumByScope(userId, scope, "COALESCE(SUM(CASE WHEN profit_amount > 0 THEN profit_amount ELSE 0 END), 0)"));
-            summary.setTotalLoss(sumByScope(userId, scope, "COALESCE(SUM(CASE WHEN profit_amount < 0 THEN ABS(profit_amount) ELSE 0 END), 0)"));
+            summary.setTotalBuyAmount(sumByScope(userId, scope, keyword, "COALESCE(SUM(buy_price), 0)"));
+            summary.setTotalSellAmount(sumByScope(userId, scope, keyword, "COALESCE(SUM(sell_price), 0)"));
+            summary.setTotalProfit(sumByScope(userId, scope, keyword, "COALESCE(SUM(CASE WHEN profit_amount > 0 THEN profit_amount ELSE 0 END), 0)"));
+            summary.setTotalLoss(sumByScope(userId, scope, keyword, "COALESCE(SUM(CASE WHEN profit_amount < 0 THEN ABS(profit_amount) ELSE 0 END), 0)"));
             // obi/magic 各自全量分类小计
-            summary.setObiCount(countByScopeAndCategory(userId, scope, CATEGORY_OBI));
-            summary.setObiBuyAmount(sumByScopeAndCategory(userId, scope, CATEGORY_OBI, "COALESCE(SUM(buy_price), 0)"));
-            summary.setMagicCount(countByScopeAndCategory(userId, scope, CATEGORY_MAGIC));
-            summary.setMagicBuyAmount(sumByScopeAndCategory(userId, scope, CATEGORY_MAGIC, "COALESCE(SUM(buy_price), 0)"));
+            summary.setObiCount(countByScopeAndCategory(userId, scope, keyword, CATEGORY_OBI));
+            summary.setObiBuyAmount(sumByScopeAndCategory(userId, scope, keyword, CATEGORY_OBI, "COALESCE(SUM(buy_price), 0)"));
+            summary.setMagicCount(countByScopeAndCategory(userId, scope, keyword, CATEGORY_MAGIC));
+            summary.setMagicBuyAmount(sumByScopeAndCategory(userId, scope, keyword, CATEGORY_MAGIC, "COALESCE(SUM(buy_price), 0)"));
         }
         return summary;
     }
@@ -467,19 +475,25 @@ public class TradeServiceImpl extends ServiceImpl<InventoryItemMapper, Inventory
         }
     }
 
-    private BigDecimal sumByScope(Long userId, String scope, String sqlExpr) {
+    private BigDecimal sumByScope(Long userId, String scope, String keyword, String sqlExpr) {
         QueryWrapper<InventoryItem> wrapper = new QueryWrapper<>();
         wrapper.select(sqlExpr);
         wrapper.eq("user_id", userId).eq("status", STATUS_SOLD);
+        if (keyword != null) {
+            wrapper.like("item_name", keyword);
+        }
         applyScopeCondition(wrapper, scope);
         List<Object> results = inventoryItemMapper.selectObjs(wrapper);
         return results.isEmpty() ? BigDecimal.ZERO : toBigDecimal(results.get(0));
     }
 
-    private BigDecimal sumByScopeAndCategory(Long userId, String scope, String category, String sqlExpr) {
+    private BigDecimal sumByScopeAndCategory(Long userId, String scope, String keyword, String category, String sqlExpr) {
         QueryWrapper<InventoryItem> wrapper = new QueryWrapper<>();
         wrapper.select(sqlExpr);
         wrapper.eq("user_id", userId).eq("status", STATUS_SOLD).eq("category", category);
+        if (keyword != null) {
+            wrapper.like("item_name", keyword);
+        }
         applyScopeCondition(wrapper, scope);
         List<Object> results = inventoryItemMapper.selectObjs(wrapper);
         return results.isEmpty() ? BigDecimal.ZERO : toBigDecimal(results.get(0));
@@ -503,9 +517,12 @@ public class TradeServiceImpl extends ServiceImpl<InventoryItemMapper, Inventory
         );
     }
 
-    private int countByScopeAndCategory(Long userId, String scope, String category) {
+    private int countByScopeAndCategory(Long userId, String scope, String keyword, String category) {
         QueryWrapper<InventoryItem> wrapper = new QueryWrapper<>();
         wrapper.eq("user_id", userId).eq("status", STATUS_SOLD).eq("category", category);
+        if (keyword != null) {
+            wrapper.like("item_name", keyword);
+        }
         applyScopeCondition(wrapper, scope);
         return Math.toIntExact(inventoryItemMapper.selectCount(wrapper));
     }
