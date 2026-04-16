@@ -27,3 +27,4 @@ deploy/env/*.local
 # Local test artifacts
 preview-*.bin
 temp-test.png
+.tmp/

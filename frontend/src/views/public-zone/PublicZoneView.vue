@@ -384,9 +384,7 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="public-zone-item__footer">
-            <div class="public-zone-item__publisher">
-              <span>{{ item.publisherName || '匿名用户' }}</span>
-              <span class="public-zone-item__dot">·</span>
+            <div class="public-zone-item__time">
               <span>{{ formatDate(item.createdAt) }}</span>
             </div>
 
@@ -720,10 +718,7 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
 }
 
-.public-zone-item__publisher {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.public-zone-item__time {
   font-size: 13px;
   color: #8d7080;
 }

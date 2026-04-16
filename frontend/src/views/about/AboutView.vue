@@ -1,68 +1,221 @@
 <script setup lang="ts">
+import { h } from 'vue'
+import { ElMessageBox } from 'element-plus'
+
+type AboutItemKey = 'version' | 'creator' | 'log' | 'reward'
+
+type AboutItem = {
+  key: AboutItemKey
+  title: string
+  desc: string
+}
+
+const version = 'v1.0.0'
+const updatedAt = '2026-04-16'
+const rewardImageUrl = '/reward-code.png'
+
+const aboutItems: AboutItem[] = [
+  {
+    key: 'version',
+    title: '版本信息',
+    desc: '查看当前版本号和更新时间。',
+  },
+  {
+    key: 'creator',
+    title: '关于作者',
+    desc: '查看创作者信息。',
+  },
+  {
+    key: 'log',
+    title: '更新日志',
+    desc: '查看最近的版本更新记录。',
+  },
+  {
+    key: 'reward',
+    title: '赞赏作者',
+    desc: '预览赞赏码，并可保存图片。',
+  },
+]
+
+const creatorText = [
+  '本项目由个人创作者持续开发与维护。',
+  '',
+  '贴吧 ID：鹤箫雪',
+  '奥比岛 ID：纯在做梦',
+  '',
+  '为爱发电，自费完成开发，无盈利行为。',
+].join('\n')
+
+const changeLogText = [
+  '更新日志',
+  '',
+  '2026-04-16 v1.0.0',
+  '新增：',
+  '1. Web 版关于页改为与原小程序更接近的条目式结构。',
+  '2. 补齐了版本信息、创作者说明、更新日志和赞赏码弹层。',
+  '',
+  '2026-04-15 v1.0.5',
+  '修复：',
+  '1. 修复了北京时间凌晨时日期选择上限显示为前一天的问题。',
+  '2. 修复了跨天后部分页面日期校验不同步的问题。',
+  '',
+  '优化：',
+  '1. 优化了日期选择与日期校验的稳定性。',
+  '2. 优化了公开交易区备注的浏览体验，支持点击查看完整备注。',
+  '3. 优化了三个分区上传物品时的分类顺序，并将默认分类调整为奥比时装。',
+  '4. 优化了关于作者信息的显示方式，换行展示更清晰。',
+  '',
+  '2026-04-14 v1.0.4',
+  '修复：',
+  '1. 修复了公开状态与页面按钮显示不同步的问题。',
+  '2. 修复了公开交易区图片显示异常的问题。',
+  '3. 修复了部分页面文案显示异常的问题。',
+  '',
+  '优化：',
+  '1. 优化了图片显示与加载体验。',
+  '2. 优化了仓库、盈亏统计和公开交易区之间的数据同步体验。',
+  '',
+  '2026-04-13 v1.0.3',
+  '修复：',
+  '1. 修复了日期填写的问题。',
+  '2. 修复了物品时间排序按交易时间排序。',
+  '3. 修复了翻到底部时会自动跳转到下一页的问题。',
+  '4. 进行了接口请求和图片存储的性能优化。',
+  '',
+  '新增：',
+  '1. 新增了分页功能，并进行了性能优化。',
+  '2. 新增了一键公开的功能。',
+  '3. 新增了返回顶部的功能。',
+  '4. 新增了公开交易区价格筛选的功能。',
+  '5. 新增了添加物品备注的功能。',
+].join('\n')
+
+const openVersionInfo = async () => {
+  await ElMessageBox({
+    title: '版本信息',
+    message: h(
+      'div',
+      {
+        style: 'white-space: pre-line; line-height: 1.8; color: #694e5d;',
+      },
+      [
+        `当前版本：${version}`,
+        `最后更新：${updatedAt}`,
+        '',
+        '奥比岛助手 Web 版当前已支持仓库管理、盈亏统计、公开交易区和关于页基础功能。',
+      ].join('\n'),
+    ),
+    showCancelButton: false,
+    confirmButtonText: '知道了',
+    closeOnClickModal: true,
+    closeOnPressEscape: true,
+  })
+}
+
+const openTextPopup = async (title: string, text: string) => {
+  await ElMessageBox({
+    title,
+    message: h(
+      'pre',
+      {
+        style: [
+          'margin: 0',
+          'white-space: pre-wrap',
+          'word-break: break-word',
+          'line-height: 1.8',
+          'font-size: 14px',
+          'font-family: inherit',
+          'color: #694e5d',
+        ].join(';'),
+      },
+      text,
+    ),
+    showCancelButton: false,
+    confirmButtonText: '关闭',
+    closeOnClickModal: true,
+    closeOnPressEscape: true,
+    customClass: 'about-message-box',
+  })
+}
+
+const openRewardPopup = async () => {
+  await ElMessageBox({
+    title: '赞赏作者',
+    message: h('div', { class: 'about-popup-reward' }, [
+      h('img', {
+        class: 'about-popup-reward__image',
+        src: rewardImageUrl,
+        alt: '赞赏码',
+      }),
+      h(
+        'p',
+        {
+          class: 'about-popup-reward__tip',
+        },
+        '点击图片可在新窗口打开原图，长按图片或另存为即可保存赞赏码。',
+      ),
+      h(
+        'a',
+        {
+          class: 'about-popup-reward__link',
+          href: rewardImageUrl,
+          target: '_blank',
+          rel: 'noreferrer',
+        },
+        '打开原图',
+      ),
+    ]),
+    showCancelButton: false,
+    confirmButtonText: '关闭',
+    closeOnClickModal: true,
+    closeOnPressEscape: true,
+    customClass: 'about-message-box about-message-box--reward',
+  })
+}
+
+const openItem = async (key: AboutItemKey) => {
+  if (key === 'version') {
+    await openVersionInfo()
+    return
+  }
+  if (key === 'creator') {
+    await openTextPopup('关于作者', creatorText)
+    return
+  }
+  if (key === 'log') {
+    await openTextPopup('更新日志', changeLogText)
+    return
+  }
+  await openRewardPopup()
+}
 </script>
 
 <template>
   <div class="ah-page-shell about-page">
-    <section class="about-card ah-glass-card ah-page-section">
-      <p class="about-card__eyebrow">Aobi Helper Web</p>
-      <h1 class="about-card__title">关于项目</h1>
-      <p class="about-card__desc">
-        奥比岛助手 Web 版，支持仓库管理、盈亏统计与公开交易。
+    <section class="about-hero ah-glass-card ah-page-section">
+      <p class="about-hero__eyebrow">Aobi Helper Web</p>
+      <h2 class="about-hero__title">关于</h2>
+      <p class="about-hero__subtitle">
+        在这里查看版本信息、创作者说明、更新日志和赞赏码。
       </p>
     </section>
 
-    <section class="about-card ah-glass-card ah-page-section">
-      <h2 class="about-card__section-title">版本信息</h2>
-      <div class="about-info-grid">
-        <div class="about-info-item">
-          <span class="about-info-item__label">当前版本</span>
-          <span class="about-info-item__value">v1.0.0</span>
-        </div>
-        <div class="about-info-item">
-          <span class="about-info-item__label">技术栈</span>
-          <span class="about-info-item__value">Vue 3 + TypeScript + Vite + Element Plus / Spring Boot + MyBatis-Plus + Sa-Token</span>
-        </div>
-        <div class="about-info-item">
-          <span class="about-info-item__label">最后更新</span>
-          <span class="about-info-item__value">2026-04-16</span>
-        </div>
+    <section class="about-panel ah-glass-card ah-page-section">
+      <div class="about-list">
+        <button
+          v-for="item in aboutItems"
+          :key="item.key"
+          class="about-item"
+          type="button"
+          @click="openItem(item.key)"
+        >
+          <div class="about-item__main">
+            <div class="about-item__title">{{ item.title }}</div>
+            <div class="about-item__desc">{{ item.desc }}</div>
+          </div>
+          <span class="about-item__action">查看</span>
+        </button>
       </div>
-    </section>
-
-    <section class="about-card ah-glass-card ah-page-section">
-      <h2 class="about-card__section-title">更新日志</h2>
-      <div class="about-changelog">
-        <div class="about-changelog__item">
-          <span class="about-changelog__date">2026-04-16</span>
-          <span class="about-changelog__tag">新增</span>
-          <span class="about-changelog__text">三大业务页（仓库/盈亏统计/公开交易区）前端接入完成，图片上传正式接入业务表单</span>
-        </div>
-        <div class="about-changelog__item">
-          <span class="about-changelog__date">2026-04-16</span>
-          <span class="about-changelog__tag">新增</span>
-          <span class="about-changelog__text">图片上传最小闭环（前端压缩 + 后端存储 + 预览接口）</span>
-        </div>
-        <div class="about-changelog__item">
-          <span class="about-changelog__date">2026-04-16</span>
-          <span class="about-changelog__tag">新增</span>
-          <span class="about-changelog__text">认证模块完整闭环（登录/注册/改密/登出）</span>
-        </div>
-        <div class="about-changelog__item">
-          <span class="about-changelog__date">2026-04-15</span>
-          <span class="about-changelog__tag">新增</span>
-          <span class="about-changelog__text">项目骨架初始化，前后端基础架构搭建完成</span>
-        </div>
-      </div>
-    </section>
-
-    <section class="about-card ah-glass-card ah-page-section">
-      <h2 class="about-card__section-title">关于作者</h2>
-      <p class="about-card__text">
-        个人项目，目标是为奥比岛玩家提供轻量、可独立部署的资产管理工具。
-      </p>
-      <p class="about-card__text">
-        如果对你有帮助，欢迎使用和反馈。
-      </p>
     </section>
   </div>
 </template>
@@ -71,110 +224,183 @@
 .about-page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
   padding: 0 0 40px;
 }
 
-.about-card__eyebrow {
-  margin: 0 0 8px;
+.about-hero__eyebrow {
+  margin: 0 0 10px;
   color: #b27f93;
   font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
-.about-card__title {
-  margin: 0 0 10px;
+.about-hero__title {
+  margin: 0;
   color: var(--ah-title);
   font-size: 32px;
+  line-height: 1.1;
 }
 
-.about-card__desc {
-  margin: 0;
+.about-hero__subtitle {
+  margin: 12px 0 0;
   color: var(--ah-text);
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
-.about-card__section-title {
-  margin: 0 0 16px;
-  color: var(--ah-title);
-  font-size: 20px;
-}
-
-.about-card__text {
-  margin: 0 0 10px;
-  color: var(--ah-text);
-  line-height: 1.6;
-}
-
-.about-card__text:last-child {
-  margin-bottom: 0;
-}
-
-.about-info-grid {
-  display: grid;
-  gap: 12px;
-}
-
-.about-info-item {
+.about-list {
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.about-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 16px;
+  padding: 20px;
+  border: 1px solid rgba(172, 204, 150, 0.58);
+  border-radius: 24px;
+  background: rgba(255, 252, 245, 0.98);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
 }
 
-.about-info-item__label {
-  flex-shrink: 0;
-  width: 80px;
-  color: #8d7080;
-  font-size: 14px;
+.about-item:hover {
+  transform: translateY(-1px);
+  border-color: rgba(138, 179, 111, 0.72);
+  box-shadow: 0 16px 28px rgba(170, 186, 136, 0.16);
 }
 
-.about-info-item__value {
-  color: var(--ah-title);
-  font-size: 14px;
-  word-break: break-all;
-}
-
-.about-changelog {
-  display: grid;
-  gap: 12px;
-}
-
-.about-changelog__item {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.about-changelog__date {
-  flex-shrink: 0;
-  color: #8d7080;
-  font-size: 13px;
-  width: 80px;
-}
-
-.about-changelog__tag {
-  flex-shrink: 0;
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  background: rgba(255, 143, 177, 0.2);
-  color: #c44d73;
-}
-
-.about-changelog__text {
+.about-item__main {
   flex: 1;
-  color: var(--ah-text);
-  font-size: 14px;
   min-width: 0;
 }
 
-@media (max-width: 600px) {
-  .about-card__title {
-    font-size: 24px;
+.about-item__title {
+  color: var(--ah-title);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.about-item__desc {
+  margin-top: 8px;
+  color: var(--ah-text);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.about-item__action {
+  flex-shrink: 0;
+  min-width: 82px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #9fcb87 0%, #79a966 100%);
+  color: #fffdf8;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .about-hero__title {
+    font-size: 26px;
+  }
+
+  .about-item {
+    padding: 18px;
+    align-items: flex-start;
+  }
+
+  .about-item__title {
+    font-size: 17px;
+  }
+
+  .about-item__action {
+    min-width: 72px;
+    padding: 9px 14px;
+  }
+}
+</style>
+
+<style>
+.about-message-box {
+  width: min(560px, calc(100vw - 24px));
+  border-radius: 28px;
+  padding: 8px;
+}
+
+.about-message-box .el-message-box__title {
+  color: #5f4252;
+  font-size: 22px;
+}
+
+.about-message-box .el-message-box__content {
+  padding-top: 8px;
+}
+
+.about-message-box .el-message-box__btns {
+  padding-top: 18px;
+}
+
+.about-message-box .el-button--primary {
+  border-radius: 999px;
+  border-color: #88b26f;
+  background: linear-gradient(180deg, #9fcb87 0%, #79a966 100%);
+}
+
+.about-popup-reward {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.about-popup-reward__image {
+  display: block;
+  width: min(300px, 100%);
+  height: auto;
+  border-radius: 22px;
+  background: rgba(255, 254, 248, 0.98);
+  border: 1px solid rgba(172, 204, 150, 0.64);
+  box-shadow: inset 0 0 0 4px rgba(239, 246, 232, 0.72);
+}
+
+.about-popup-reward__tip {
+  margin: 0;
+  text-align: center;
+  color: #694e5d;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.about-popup-reward__link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 108px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(172, 204, 150, 0.64);
+  color: #6b5660;
+}
+
+@media (max-width: 768px) {
+  .about-message-box {
+    width: calc(100vw - 20px);
+  }
+
+  .about-message-box .el-message-box__title {
+    font-size: 20px;
   }
 }
 </style>
