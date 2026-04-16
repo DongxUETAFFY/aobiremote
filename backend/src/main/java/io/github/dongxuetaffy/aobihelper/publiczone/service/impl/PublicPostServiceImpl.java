@@ -222,23 +222,26 @@ public class PublicPostServiceImpl extends ServiceImpl<PublicPostMapper, PublicP
         );
 
         boolean flagged;
-        int nextCount;
         LocalDateTime now = LocalDateTime.now();
 
         if (existingFlag != null) {
             publicPostFlagMapper.deleteById(existingFlag.getId());
             flagged = false;
-            nextCount = Math.max((post.getUntrustedCount() == null ? 0 : post.getUntrustedCount()) - 1, 0);
-        } else {
-            PublicPostFlag newFlag = new PublicPostFlag();
-            newFlag.setUserId(currentUserId);
-            newFlag.setPostId(postId);
-            newFlag.setCreatedAt(now);
-            publicPostFlagMapper.insert(newFlag);
-            flagged = true;
-            nextCount = (post.getUntrustedCount() == null ? 0 : post.getUntrustedCount()) + 1;
+            int nextCount = Math.max((post.getUntrustedCount() == null ? 0 : post.getUntrustedCount()) - 1, 0);
+            post.setUntrustedCount(nextCount);
+            post.setUpdatedAt(now);
+            baseMapper.updateById(post);
+            return new PublicPostToggleUntrustedVO(postId, false, nextCount);
         }
 
+        PublicPostFlag newFlag = new PublicPostFlag();
+        newFlag.setUserId(currentUserId);
+        newFlag.setPostId(postId);
+        newFlag.setCreatedAt(now);
+        publicPostFlagMapper.insert(newFlag);
+
+        flagged = true;
+        int nextCount = (post.getUntrustedCount() == null ? 0 : post.getUntrustedCount()) + 1;
         post.setUntrustedCount(nextCount);
         post.setUpdatedAt(now);
         baseMapper.updateById(post);

@@ -291,7 +291,7 @@ const handleToggleUntrusted = async (item: PublicPostListItem) => {
     const resp = await togglePublicPostUntrusted(item.id, `req_${Date.now()}`)
     item.untrusted = resp.data.flagged
     item.untrustedCount = resp.data.untrustedCount
-    ElMessage.success(resp.data.flagged ? '已标记不可信' : '已取消不可信')
+    ElMessage.success(item.untrusted ? '已标记不可信' : '已取消不可信')
   } catch (error: any) {
     ElMessage.error(error?.response?.data?.message || '操作失败')
   }
@@ -451,11 +451,19 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="public-zone-item__footer">
-            <div class="public-zone-item__status">
+            <div class="public-zone-item__left">
               <div class="public-zone-item__time">
                 <span>{{ formatDate(item.createdAt) }}</span>
               </div>
-              <div class="public-zone-item__untrusted">
+              <div class="public-zone-item__untrusted-row">
+                <el-button
+                  v-if="authStore.isAuthenticated && !item.mine"
+                  size="small"
+                  type="warning"
+                  @click="handleToggleUntrusted(item)"
+                >
+                  {{ item.untrusted ? '取消不可信' : '不可信' }}
+                </el-button>
                 <span class="public-zone-item__untrusted-badge">
                   不可信 × {{ item.untrustedCount }}
                 </span>
@@ -463,14 +471,6 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="public-zone-item__actions">
-              <el-button
-                v-if="authStore.isAuthenticated && !item.mine"
-                size="small"
-                type="warning"
-                @click="handleToggleUntrusted(item)"
-              >
-                {{ item.untrusted ? '取消不可信' : '不可信' }}
-              </el-button>
               <template v-if="item.mine">
                 <el-button size="small" @click="openEditDialog(item)">编辑</el-button>
                 <el-button size="small" type="danger" @click="handleDelete(item)">删除</el-button>
@@ -811,7 +811,7 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
 }
 
-.public-zone-item__status {
+.public-zone-item__left {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -822,9 +822,11 @@ onBeforeUnmount(() => {
   color: #8d7080;
 }
 
-.public-zone-item__untrusted {
+.public-zone-item__untrusted-row {
   display: flex;
   align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .public-zone-item__actions {
