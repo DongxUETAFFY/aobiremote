@@ -1,0 +1,29 @@
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.claude/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+
+# Backend
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+backend/.local-data/
+
+# Deploy / env
+deploy/env/*.env
+deploy/env/*.local
+
+# Logs
+*.log
+
+# Local test artifacts
+preview-*.bin
+temp-test.png

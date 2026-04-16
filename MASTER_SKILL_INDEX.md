@@ -1,5 +1,12 @@
 # 主 Skill 索引
 
+文档使用总则：
+
+- `MASTER_SKILL_INDEX.md` 是总入口，负责告诉 AI 这次任务该读哪些文档
+- `PROJECT_STATUS.md` 是进度真源，负责确认项目现在真实做到哪一步
+- `AOBIDAO_WEB_SDD.md` 是主规范，负责约束红线、底线和强制开发顺序。
+每做完一次功能，都要更新`PROJECT_STATUS.md`
+
 本文档是 `aobidao-web` 的开发索引入口。
 
 它不是新的大规范，也不重复描述已有文档内容。  
@@ -14,9 +21,10 @@
 应遵循：
 
 1. 先看本索引
-2. 根据任务类型，只读取必要文档
-3. 如果任务扩大，再追加读取相关文档
-4. 不要把多个文档中的同类内容重复搬进上下文
+2. 先看 `PROJECT_STATUS.md` 确认真实进度
+3. 根据任务类型，只读取必要文档
+4. 如果任务扩大，再追加读取相关文档
+5. 不要把多个文档中的同类内容重复搬进上下文
 
 ## 2. 文档职责总览
 
@@ -25,6 +33,12 @@
   - 红线
   - 当前阶段开发顺序
   - 不可违反的项目底线
+
+- `PROJECT_STATUS.md`
+  - 当前真实进度
+  - 已完成事项
+  - 未完成事项
+  - 强制开发顺序
 
 - `ENGINEERING_BASELINE.md`
   - 上线工程基线
@@ -46,53 +60,75 @@
 
 - `DB_SCHEMA.md`
   - 数据库表结构、字段、索引、约束
-  - 当前待创建
 
 - `API_DESIGN.md`
   - 接口路径、请求参数、响应结构、鉴权要求
-  - 当前待创建
 
 ## 3. 任务到文档的映射
 
-### 3.1 搭项目骨架
+### 3.1 搭项目骨架（已完成）
 
 先读：
 
-1. `AOBIDAO_WEB_SDD.md`
-2. `PROJECT_STRUCTURE.md`
+1. `PROJECT_STATUS.md`
+2. `AOBIDAO_WEB_SDD.md`
+3. `PROJECT_STRUCTURE.md`
+4. `ENGINEERING_BASELINE.md`
+
+适用任务：
+
+- 已有骨架的扩展与维护
+- 新增子模块时的目录规范
+- 环境变量样例更新
+
+### 3.2 登录、注册、修改密码（后端已完成）
+
+先读：
+
+1. `PROJECT_STATUS.md`
+2. `AOBIDAO_WEB_SDD.md`
 3. `ENGINEERING_BASELINE.md`
+4. `DB_SCHEMA.md`
+5. `API_DESIGN.md`
 
 适用任务：
 
-- 初始化 `frontend`
-- 初始化 `backend`
-- 建目录
-- 配环境变量样例
-- 建部署目录
+- 后端已闭环，扩展/维护现有认证逻辑
+- 前端子模块接入（当前骨架态，待接真实数据）
+- 新增第三方登录等扩展
 
-### 3.2 登录、注册、修改密码
+### 3.3 三大业务页后端（核心开发阶段）
 
 先读：
 
-1. `AOBIDAO_WEB_SDD.md`
-2. `ENGINEERING_BASELINE.md`
-3. `DB_SCHEMA.md`（如果已存在）
-4. `API_DESIGN.md`（如果已存在）
+1. `PROJECT_STATUS.md`
+2. `AOBIDAO_WEB_SDD.md`
+3. `DB_SCHEMA.md`
+4. `API_DESIGN.md`
+5. 原小程序相关页面逻辑
+
+当前真实进度：
+
+- inventory 后端：已完成（CRUD + 标记卖出 + 公开联动 + 统计汇总）
+- trade 后端：已完成（完整 CRUD + 聚合统计 + 公开/取消公开联动）
+- publiczone 后端：基础分页查询，CRUD 尚未完整实现
 
 适用任务：
 
-- 邮箱注册
-- 验证码发送
-- 登录态
-- 修改密码
+- publiczone 后端完整 CRUD 实现
+- 不可信标记与计数
+- 防频繁操作保护
 
-### 3.3 数据库设计
+---
+
+### 3.4 数据库设计
 
 先读：
 
-1. `AOBIDAO_WEB_SDD.md`
-2. `ENGINEERING_BASELINE.md`
-3. 原小程序业务代码与 README
+1. `PROJECT_STATUS.md`
+2. `AOBIDAO_WEB_SDD.md`
+3. `ENGINEERING_BASELINE.md`
+4. 原小程序业务代码与 README
 
 写入目标：
 
@@ -105,14 +141,15 @@
 - 设计约束
 - 设计状态字段
 
-### 3.4 接口设计
+### 3.5 接口设计
 
 先读：
 
-1. `AOBIDAO_WEB_SDD.md`
-2. `DB_SCHEMA.md`
-3. `ENGINEERING_BASELINE.md`
-4. 原小程序相关页面逻辑
+1. `PROJECT_STATUS.md`
+2. `AOBIDAO_WEB_SDD.md`
+3. `DB_SCHEMA.md`
+4. `ENGINEERING_BASELINE.md`
+5. 原小程序相关页面逻辑
 
 写入目标：
 
@@ -125,7 +162,7 @@
 - 设计上传接口
 - 设计三大业务页接口
 
-### 3.5 页面复刻
+### 3.6 页面复刻
 
 先读：
 
@@ -145,7 +182,7 @@
 - 复刻关于页
 - 复刻共享弹层、搜索条、分页条、悬浮按钮
 
-### 3.6 上线部署
+### 3.7 上线部署
 
 先读：
 
@@ -161,7 +198,7 @@
 - 环境变量
 - 生产部署
 
-### 3.7 排错与重构
+### 3.8 排错与重构
 
 先读：
 
@@ -182,8 +219,8 @@
 
 开始任何任务时，默认先只看：
 
-1. `MASTER_SKILL_INDEX.md`
-2. `AOBIDAO_WEB_SDD.md`
+1. `guide.md`
+2. `PROJECT_STATUS.md`
 
 然后根据任务追加读取。
 

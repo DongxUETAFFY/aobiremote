@@ -1,0 +1,37 @@
+spring:
+  datasource:
+    url: ${AOBI_DB_URL}
+    username: ${AOBI_DB_USERNAME}
+    password: ${AOBI_DB_PASSWORD}
+  data:
+    redis:
+      host: ${AOBI_REDIS_HOST}
+      port: ${AOBI_REDIS_PORT:6379}
+      password: ${AOBI_REDIS_PASSWORD:}
+  mail:
+    host: ${AOBI_MAIL_HOST}
+    port: ${AOBI_MAIL_PORT:465}
+    username: ${AOBI_MAIL_USERNAME}
+    password: ${AOBI_MAIL_PASSWORD}
+    protocol: smtp
+
+sa-token:
+  token-prefix: Bearer
+
+app:
+  auth:
+    mail-enabled: true
+    verification-code-expire-seconds: 300
+    verification-code-send-interval-seconds: 60
+    verification-code-hour-limit: 10
+    login-fail-limit: 5
+    login-fail-window-seconds: 600
+    dev-log-verification-code: false
+  cors:
+    allowed-origins:
+      - https://your-domain.example
+  minio:
+    endpoint: ${AOBI_MINIO_ENDPOINT}
+    access-key: ${AOBI_MINIO_ACCESS_KEY}
+    secret-key: ${AOBI_MINIO_SECRET_KEY}
+    bucket-name: ${AOBI_MINIO_BUCKET}

@@ -1,0 +1,53 @@
+spring:
+  datasource:
+    url: jdbc:h2:file:./.local-data/aobihelper;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;AUTO_SERVER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema-h2.sql
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  mail:
+    host: smtp.example.com
+    port: 465
+    username: no-reply@example.com
+    password: change_me
+    protocol: smtp
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+
+sa-token:
+  token-name: Authorization
+  token-prefix: Bearer
+  timeout: 2592000
+  active-timeout: 86400
+  is-share: false
+  token-style: random-64
+  is-read-header: true
+  is-read-cookie: false
+
+app:
+  auth:
+    mail-enabled: false
+    verification-code-expire-seconds: 300
+    verification-code-send-interval-seconds: 60
+    verification-code-hour-limit: 10
+    login-fail-limit: 5
+    login-fail-window-seconds: 600
+    dev-log-verification-code: true
+    cache:
+      type: memory
+  cors:
+    allowed-origins:
+      - http://localhost:5173
+      - http://127.0.0.1:5173
+  file:
+    local-root: ./.local-data/uploads
+    max-image-bytes: 614400

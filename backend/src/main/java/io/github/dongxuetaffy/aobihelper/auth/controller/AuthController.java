@@ -1,0 +1,71 @@
+package io.github.dongxuetaffy.aobihelper.auth.controller;
+
+import cn.dev33.satoken.annotation.SaCheckLogin;
+import io.github.dongxuetaffy.aobihelper.auth.dto.ChangePasswordRequest;
+import io.github.dongxuetaffy.aobihelper.auth.dto.LoginRequest;
+import io.github.dongxuetaffy.aobihelper.auth.dto.RegisterRequest;
+import io.github.dongxuetaffy.aobihelper.auth.dto.SendRegisterCodeRequest;
+import io.github.dongxuetaffy.aobihelper.auth.service.AuthService;
+import io.github.dongxuetaffy.aobihelper.auth.vo.CurrentUserVO;
+import io.github.dongxuetaffy.aobihelper.auth.vo.LoginResponseVO;
+import io.github.dongxuetaffy.aobihelper.auth.vo.RegisterResponseVO;
+import io.github.dongxuetaffy.aobihelper.common.api.ApiResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/auth")
+public class AuthController {
+    private final AuthService authService;
+
+    public AuthController(AuthService authService) {
+        this.authService = authService;
+    }
+
+    @PostMapping("/send-register-code")
+    public ApiResponse<Void> sendRegisterCode(
+        @Valid @RequestBody SendRegisterCodeRequest request,
+        HttpServletRequest httpServletRequest
+    ) {
+        authService.sendRegisterCode(request.getEmail(), httpServletRequest.getRemoteAddr());
+        return ApiResponse.success("Verification code sent", null);
+    }
+
+    @SaCheckLogin
+    @GetMapping("/me")
+    public ApiResponse<CurrentUserVO> currentUser() {
+        return ApiResponse.success(authService.getCurrentUser());
+    }
+
+    @PostMapping("/login")
+    public ApiResponse<LoginResponseVO> login(
+        @Valid @RequestBody LoginRequest request,
+        HttpServletRequest httpServletRequest
+    ) {
+        return ApiResponse.success("Login success", authService.login(request, httpServletRequest.getRemoteAddr()));
+    }
+
+    @PostMapping("/register")
+    public ApiResponse<RegisterResponseVO> register(@Valid @RequestBody RegisterRequest request) {
+        return ApiResponse.success("Register success", authService.register(request));
+    }
+
+    @SaCheckLogin
+    @PostMapping("/logout")
+    public ApiResponse<Void> logout() {
+        authService.logout();
+        return ApiResponse.success("Logout success", null);
+    }
+
+    @SaCheckLogin
+    @PostMapping("/change-password")
+    public ApiResponse<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+        authService.changePassword(request);
+        return ApiResponse.success("Password changed successfully", null);
+    }
+}

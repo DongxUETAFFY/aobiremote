@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: aobihelper-backend
+  profiles:
+    active: dev
+
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always

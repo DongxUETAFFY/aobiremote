@@ -1,0 +1,26 @@
+CREATE TABLE IF NOT EXISTS user_account (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    email VARCHAR(128) NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    nickname VARCHAR(40) NOT NULL,
+    avatar_url VARCHAR(255) NOT NULL DEFAULT '',
+    status VARCHAR(20) NOT NULL DEFAULT 'active',
+    last_login_at DATETIME NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT uk_user_account_email UNIQUE (email)
+);
+
+CREATE TABLE IF NOT EXISTS user_stats (
+    user_id BIGINT PRIMARY KEY,
+    total_profit DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    total_loss DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    sold_count INT NOT NULL DEFAULT 0,
+    sold_buy_total DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    sold_sell_total DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    unsold_count INT NOT NULL DEFAULT 0,
+    unsold_buy_total DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_user_stats_user_id FOREIGN KEY (user_id) REFERENCES user_account (id)
+);

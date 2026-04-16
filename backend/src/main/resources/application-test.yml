@@ -1,0 +1,29 @@
+spring:
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/aobi_helper_test?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: root
+    password: change_me
+  sql:
+    init:
+      mode: always
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      database: 1
+
+sa-token:
+  token-prefix: Bearer
+
+app:
+  auth:
+    mail-enabled: true
+    verification-code-expire-seconds: 300
+    verification-code-send-interval-seconds: 60
+    verification-code-hour-limit: 10
+    login-fail-limit: 5
+    login-fail-window-seconds: 600
+    dev-log-verification-code: false
+  cors:
+    allowed-origins:
+      - https://test.example.com
