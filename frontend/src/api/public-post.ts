@@ -3,6 +3,7 @@ import type {
   PublicPostPageApiResponse,
   PublicPostDetailApiResponse,
   PublicPostUpsertApiResponse,
+  PublicPostToggleUntrustedApiResponse,
   PublicPostCreateRequest,
   PublicPostUpdateRequest,
   PublicPostPageQuery,
@@ -36,8 +37,8 @@ export const deletePublicPost = async (id: number, requestId: string) => {
 }
 
 export const togglePublicPostUntrusted = async (id: number, requestId: string) => {
-  const { data } = await http.post<PublicPostUpsertApiResponse>(`/public-post/${id}/toggle-untrusted`, null, {
-    params: { requestId },
+  const { data } = await http.post<PublicPostToggleUntrustedApiResponse>(`/public-post/${id}/toggle-untrusted`, {
+    requestId,
   })
   return data
 }

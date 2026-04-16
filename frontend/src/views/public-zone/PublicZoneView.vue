@@ -38,6 +38,9 @@ const filterScope = ref<'all' | 'mine'>('all')
 const filterDirection = ref<'all' | 'buy' | 'sell'>('all')
 const filterChannel = ref<PublicPostChannel | 'all'>('all' as PublicPostChannel | 'all')
 const filterCategory = ref<PublicPostCategory | 'all'>('all' as PublicPostCategory | 'all')
+const filterKeyword = ref('')
+const filterMinPrice = ref<number | null>(null)
+const filterMaxPrice = ref<number | null>(null)
 
 // Form dialog
 const dialogVisible = ref(false)
@@ -94,6 +97,9 @@ const loadData = async (page = 1) => {
     if (filterDirection.value !== 'all') params.direction = filterDirection.value
     if (filterChannel.value !== 'all') params.channel = filterChannel.value
     if (filterCategory.value !== 'all') params.category = filterCategory.value
+    if (filterKeyword.value.trim()) params.keyword = filterKeyword.value.trim()
+    if (filterMinPrice.value != null) params.minPrice = String(filterMinPrice.value)
+    if (filterMaxPrice.value != null) params.maxPrice = String(filterMaxPrice.value)
 
     const resp = await getPublicPostPage(params)
     if (page === 1) {
@@ -111,6 +117,37 @@ const loadData = async (page = 1) => {
 }
 
 const handleFilterChange = () => {
+  currentPage.value = 1
+  loadData(1)
+}
+
+const handleKeywordSearch = () => {
+  if (filterMinPrice.value != null && filterMaxPrice.value != null && filterMinPrice.value > filterMaxPrice.value) {
+    ElMessage.warning('最低价不能大于最高价')
+    return
+  }
+  currentPage.value = 1
+  loadData(1)
+}
+
+const handleKeywordClear = () => {
+  filterKeyword.value = ''
+  currentPage.value = 1
+  loadData(1)
+}
+
+const handlePriceSearch = () => {
+  if (filterMinPrice.value != null && filterMaxPrice.value != null && filterMinPrice.value > filterMaxPrice.value) {
+    ElMessage.warning('最低价不能大于最高价')
+    return
+  }
+  currentPage.value = 1
+  loadData(1)
+}
+
+const handlePriceClear = () => {
+  filterMinPrice.value = null
+  filterMaxPrice.value = null
   currentPage.value = 1
   loadData(1)
 }
@@ -251,9 +288,10 @@ const handleDelete = async (item: PublicPostListItem) => {
 
 const handleToggleUntrusted = async (item: PublicPostListItem) => {
   try {
-    await togglePublicPostUntrusted(item.id, `req_${Date.now()}`)
-    ElMessage.success('已标记')
-    await loadData(currentPage.value)
+    const resp = await togglePublicPostUntrusted(item.id, `req_${Date.now()}`)
+    item.untrusted = resp.data.flagged
+    item.untrustedCount = resp.data.untrustedCount
+    ElMessage.success(resp.data.flagged ? '已标记不可信' : '已取消不可信')
   } catch (error: any) {
     ElMessage.error(error?.response?.data?.message || '操作失败')
   }
@@ -299,6 +337,40 @@ onBeforeUnmount(() => {
 
     <!-- Filters -->
     <section class="public-zone-filters ah-glass-card ah-page-section">
+      <div class="public-zone-filters__group public-zone-filters__search">
+        <span class="public-zone-filters__label">名称</span>
+        <el-input
+          v-model="filterKeyword"
+          class="public-zone-filters__search-input"
+          clearable
+          placeholder="按物品名称筛选"
+          @keyup.enter="handleKeywordSearch"
+          @clear="handleKeywordClear"
+        />
+        <el-button @click="handleKeywordSearch">搜索</el-button>
+      </div>
+      <div class="public-zone-filters__group public-zone-filters__price">
+        <span class="public-zone-filters__label">价格</span>
+        <el-input-number
+          v-model="filterMinPrice"
+          class="public-zone-filters__price-input"
+          :min="0"
+          :precision="2"
+          :step="1"
+          placeholder="最低价"
+        />
+        <span class="public-zone-filters__range-sep">-</span>
+        <el-input-number
+          v-model="filterMaxPrice"
+          class="public-zone-filters__price-input"
+          :min="0"
+          :precision="2"
+          :step="1"
+          placeholder="最高价"
+        />
+        <el-button @click="handlePriceSearch">查询</el-button>
+        <el-button @click="handlePriceClear">清空</el-button>
+      </div>
       <div class="public-zone-filters__group">
         <span class="public-zone-filters__label">范围</span>
         <el-radio-group v-model="filterScope" size="small" @change="handleFilterChange">
@@ -378,25 +450,26 @@ onBeforeUnmount(() => {
             <span>{{ formatDate(item.tradeTime) }}</span>
           </div>
 
-          <div v-if="item.untrustedCount > 0" class="public-zone-item__untrusted">
-            <span class="public-zone-item__untrusted-badge">
-              不可信 × {{ item.untrustedCount }}
-            </span>
-          </div>
-
           <div class="public-zone-item__footer">
-            <div class="public-zone-item__time">
-              <span>{{ formatDate(item.createdAt) }}</span>
+            <div class="public-zone-item__status">
+              <div class="public-zone-item__time">
+                <span>{{ formatDate(item.createdAt) }}</span>
+              </div>
+              <div class="public-zone-item__untrusted">
+                <span class="public-zone-item__untrusted-badge">
+                  不可信 × {{ item.untrustedCount }}
+                </span>
+              </div>
             </div>
 
             <div class="public-zone-item__actions">
               <el-button
-                v-if="authStore.isAuthenticated && !item.mine && !item.untrusted"
+                v-if="authStore.isAuthenticated && !item.mine"
                 size="small"
                 type="warning"
                 @click="handleToggleUntrusted(item)"
               >
-                不可信
+                {{ item.untrusted ? '取消不可信' : '不可信' }}
               </el-button>
               <template v-if="item.mine">
                 <el-button size="small" @click="openEditDialog(item)">编辑</el-button>
@@ -574,6 +647,29 @@ onBeforeUnmount(() => {
   gap: 10px;
 }
 
+.public-zone-filters__search {
+  flex: 1 1 320px;
+}
+
+.public-zone-filters__search-input {
+  min-width: 220px;
+  max-width: 360px;
+}
+
+.public-zone-filters__price {
+  flex: 1 1 420px;
+  flex-wrap: wrap;
+}
+
+.public-zone-filters__price-input {
+  width: 140px;
+}
+
+.public-zone-filters__range-sep {
+  color: #8d7080;
+  font-size: 14px;
+}
+
 .public-zone-filters__label {
   color: #8d7080;
   font-size: 13px;
@@ -698,10 +794,6 @@ onBeforeUnmount(() => {
   color: #c9a0b0;
 }
 
-.public-zone-item__untrusted {
-  margin-top: 8px;
-}
-
 .public-zone-item__untrusted-badge {
   background: rgba(207, 93, 117, 0.12);
   color: #c44d73;
@@ -719,9 +811,20 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
 }
 
+.public-zone-item__status {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .public-zone-item__time {
   font-size: 13px;
   color: #8d7080;
+}
+
+.public-zone-item__untrusted {
+  display: flex;
+  align-items: center;
 }
 
 .public-zone-item__actions {
@@ -781,6 +884,25 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 600px) {
+  .public-zone-filters__search {
+    width: 100%;
+  }
+
+  .public-zone-filters__search-input {
+    min-width: 0;
+    max-width: none;
+    flex: 1;
+  }
+
+  .public-zone-filters__price {
+    width: 100%;
+  }
+
+  .public-zone-filters__price-input {
+    width: calc(50% - 26px);
+    min-width: 0;
+  }
+
   .public-zone-item {
     flex-direction: column;
   }

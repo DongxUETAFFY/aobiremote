@@ -79,12 +79,23 @@ export interface PublicPostUpdateRequest {
 export interface PublicPostPageQuery {
   pageNo?: number
   pageSize?: number
+  scope?: 'all' | 'mine'
   direction?: PublicPostDirection
   channel?: PublicPostChannel
   category?: PublicPostCategory
   keyword?: string
+  minPrice?: string
+  maxPrice?: string
+  sortType?: 'tradeTimeDesc' | 'priceDesc'
+}
+
+export interface PublicPostToggleUntrustedResponse {
+  postId: number
+  flagged: boolean
+  untrustedCount: number
 }
 
 export type PublicPostUpsertApiResponse = ApiResponse<{ itemId: number }>
 export type PublicPostPageApiResponse = ApiResponse<PublicPostPageResponse>
 export type PublicPostDetailApiResponse = ApiResponse<PublicPostDetail>
+export type PublicPostToggleUntrustedApiResponse = ApiResponse<PublicPostToggleUntrustedResponse>
