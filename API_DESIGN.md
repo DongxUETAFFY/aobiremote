@@ -110,7 +110,33 @@ Authorization: Bearer <token>
 }
 ```
 
-## 5.2 注册
+## 5.2 发送找回密码验证码
+
+`POST /api/auth/send-reset-password-code`
+
+鉴权：
+
+- 不需要登录
+
+请求体：
+
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+返回：
+
+```json
+{
+  "code": 0,
+  "message": "验证码已发送",
+  "data": null
+}
+```
+
+## 5.3 注册
 
 `POST /api/auth/register`
 
@@ -140,7 +166,7 @@ Authorization: Bearer <token>
 }
 ```
 
-## 5.3 登录
+## 5.4 登录
 
 `POST /api/auth/login`
 
@@ -175,7 +201,7 @@ Authorization: Bearer <token>
 }
 ```
 
-## 5.4 退出登录
+## 5.5 退出登录
 
 `POST /api/auth/logout`
 
@@ -193,7 +219,7 @@ Authorization: Bearer <token>
 }
 ```
 
-## 5.5 修改密码
+## 5.6 修改密码
 
 `POST /api/auth/change-password`
 
@@ -220,7 +246,35 @@ Authorization: Bearer <token>
 }
 ```
 
-## 5.6 当前登录用户信息
+## 5.7 忘记密码重置
+
+`POST /api/auth/reset-password`
+
+鉴权：
+
+- 不需要登录
+
+请求体：
+
+```json
+{
+  "email": "user@example.com",
+  "code": "123456",
+  "newPassword": "new123456"
+}
+```
+
+返回：
+
+```json
+{
+  "code": 0,
+  "message": "密码重置成功",
+  "data": null
+}
+```
+
+## 5.8 当前登录用户信息
 
 `GET /api/auth/me`
 

@@ -37,6 +37,7 @@ const summary = ref<InventorySummary>({
   magicCount: 0,
   magicBuyPrice: '0.00',
 })
+const PAGE_SIZE = 30
 const currentPage = ref(1)
 const selectedIds = ref<number[]>([])
 const currentCategory = ref<InventoryCategory | ''>('')
@@ -124,7 +125,7 @@ const loadData = async (page = 1) => {
   try {
     const resp = await getInventoryPage({
       pageNo: page,
-      pageSize: 20,
+      pageSize: PAGE_SIZE,
       keyword: filterKeyword.value.trim() || undefined,
       category: currentCategory.value || undefined,
     })
@@ -491,7 +492,7 @@ onBeforeUnmount(() => {
         <PaginationBar
           :current="currentPage"
           :total="totalCount"
-          :page-size="20"
+          :page-size="PAGE_SIZE"
           @change="handlePageChange"
         />
       </div>
@@ -562,7 +563,7 @@ onBeforeUnmount(() => {
         <PaginationBar
           :current="currentPage"
           :total="totalCount"
-          :page-size="20"
+          :page-size="PAGE_SIZE"
           @change="handlePageChange"
         />
       </div>

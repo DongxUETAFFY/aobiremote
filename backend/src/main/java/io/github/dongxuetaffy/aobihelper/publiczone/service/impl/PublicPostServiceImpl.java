@@ -45,8 +45,8 @@ public class PublicPostServiceImpl extends ServiceImpl<PublicPostMapper, PublicP
     private static final Set<String> ALLOWED_CATEGORIES = Set.of("magic", "obi");
     private static final Set<String> ALLOWED_SORT_TYPES = Set.of("tradeTimeDesc", "priceDesc");
     private static final long DEFAULT_PAGE_NO = 1L;
-    private static final long DEFAULT_PAGE_SIZE = 10L;
-    private static final long MAX_PAGE_SIZE = 50L;
+    private static final long DEFAULT_PAGE_SIZE = 30L;
+    private static final long MAX_PAGE_SIZE = 30L;
 
     private final UserAccountMapper userAccountMapper;
     private final PublicPostFlagMapper publicPostFlagMapper;

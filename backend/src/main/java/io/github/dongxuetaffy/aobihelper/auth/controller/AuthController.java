@@ -4,6 +4,7 @@ import cn.dev33.satoken.annotation.SaCheckLogin;
 import io.github.dongxuetaffy.aobihelper.auth.dto.ChangePasswordRequest;
 import io.github.dongxuetaffy.aobihelper.auth.dto.LoginRequest;
 import io.github.dongxuetaffy.aobihelper.auth.dto.RegisterRequest;
+import io.github.dongxuetaffy.aobihelper.auth.dto.ResetPasswordRequest;
 import io.github.dongxuetaffy.aobihelper.auth.dto.SendRegisterCodeRequest;
 import io.github.dongxuetaffy.aobihelper.auth.service.AuthService;
 import io.github.dongxuetaffy.aobihelper.auth.vo.CurrentUserVO;
@@ -33,6 +34,15 @@ public class AuthController {
         HttpServletRequest httpServletRequest
     ) {
         authService.sendRegisterCode(request.getEmail(), httpServletRequest.getRemoteAddr());
+        return ApiResponse.success("Verification code sent", null);
+    }
+
+    @PostMapping("/send-reset-password-code")
+    public ApiResponse<Void> sendResetPasswordCode(
+        @Valid @RequestBody SendRegisterCodeRequest request,
+        HttpServletRequest httpServletRequest
+    ) {
+        authService.sendResetPasswordCode(request.getEmail(), httpServletRequest.getRemoteAddr());
         return ApiResponse.success("Verification code sent", null);
     }
 
@@ -67,5 +77,11 @@ public class AuthController {
     public ApiResponse<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
         authService.changePassword(request);
         return ApiResponse.success("Password changed successfully", null);
+    }
+
+    @PostMapping("/reset-password")
+    public ApiResponse<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        return ApiResponse.success("Password reset successfully", null);
     }
 }

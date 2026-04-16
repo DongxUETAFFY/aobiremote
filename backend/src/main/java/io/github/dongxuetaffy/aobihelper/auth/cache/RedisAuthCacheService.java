@@ -11,6 +11,9 @@ public class RedisAuthCacheService implements AuthCacheService {
     private static final String REGISTER_CODE_KEY_PREFIX = "auth:register-code:";
     private static final String REGISTER_CODE_INTERVAL_KEY_PREFIX = "auth:register-code-interval:";
     private static final String REGISTER_CODE_HOURLY_KEY_PREFIX = "auth:register-code-hourly:";
+    private static final String RESET_PASSWORD_CODE_KEY_PREFIX = "auth:reset-password-code:";
+    private static final String RESET_PASSWORD_INTERVAL_KEY_PREFIX = "auth:reset-password-interval:";
+    private static final String RESET_PASSWORD_HOURLY_KEY_PREFIX = "auth:reset-password-hourly:";
     private static final String LOGIN_FAIL_EMAIL_KEY_PREFIX = "auth:login-fail-email:";
     private static final String LOGIN_FAIL_IP_KEY_PREFIX = "auth:login-fail-ip:";
 
@@ -53,6 +56,41 @@ public class RedisAuthCacheService implements AuthCacheService {
     @Override
     public void incrementRegisterHourlyCount(String email, Duration ttl) {
         incrementWithTtl(registerHourlyKey(email), ttl);
+    }
+
+    @Override
+    public void storeResetPasswordCode(String email, String code, Duration ttl) {
+        stringRedisTemplate.opsForValue().set(resetPasswordCodeKey(email), code, ttl);
+    }
+
+    @Override
+    public String getResetPasswordCode(String email) {
+        return stringRedisTemplate.opsForValue().get(resetPasswordCodeKey(email));
+    }
+
+    @Override
+    public void removeResetPasswordCode(String email) {
+        stringRedisTemplate.delete(resetPasswordCodeKey(email));
+    }
+
+    @Override
+    public boolean hasResetPasswordInterval(String email) {
+        return Boolean.TRUE.equals(stringRedisTemplate.hasKey(resetPasswordIntervalKey(email)));
+    }
+
+    @Override
+    public void markResetPasswordInterval(String email, Duration ttl) {
+        stringRedisTemplate.opsForValue().set(resetPasswordIntervalKey(email), "1", ttl);
+    }
+
+    @Override
+    public int getResetPasswordHourlyCount(String email) {
+        return getInteger(resetPasswordHourlyKey(email));
+    }
+
+    @Override
+    public void incrementResetPasswordHourlyCount(String email, Duration ttl) {
+        incrementWithTtl(resetPasswordHourlyKey(email), ttl);
     }
 
     @Override
@@ -107,6 +145,18 @@ public class RedisAuthCacheService implements AuthCacheService {
 
     private String registerHourlyKey(String email) {
         return REGISTER_CODE_HOURLY_KEY_PREFIX + email;
+    }
+
+    private String resetPasswordCodeKey(String email) {
+        return RESET_PASSWORD_CODE_KEY_PREFIX + email;
+    }
+
+    private String resetPasswordIntervalKey(String email) {
+        return RESET_PASSWORD_INTERVAL_KEY_PREFIX + email;
+    }
+
+    private String resetPasswordHourlyKey(String email) {
+        return RESET_PASSWORD_HOURLY_KEY_PREFIX + email;
     }
 
     private String loginFailEmailKey(String email) {

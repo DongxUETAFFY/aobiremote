@@ -51,8 +51,8 @@ public class TradeServiceImpl extends ServiceImpl<InventoryItemMapper, Inventory
     private static final Set<String> ALLOWED_CHANNELS = Set.of("xianyu", "tieba", "other");
     private static final Set<String> ALLOWED_CATEGORIES = Set.of("magic", "obi");
     private static final long DEFAULT_PAGE_NO = 1L;
-    private static final long DEFAULT_PAGE_SIZE = 10L;
-    private static final long MAX_PAGE_SIZE = 50L;
+    private static final long DEFAULT_PAGE_SIZE = 30L;
+    private static final long MAX_PAGE_SIZE = 30L;
 
     private final InventoryItemMapper inventoryItemMapper;
     private final PublicPostMapper publicPostMapper;

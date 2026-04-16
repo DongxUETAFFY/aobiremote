@@ -5,11 +5,15 @@ import {
   login,
   logout,
   register,
+  resetPassword,
   sendRegisterCode,
+  sendResetPasswordCode,
   type ChangePasswordPayload,
   type LoginPayload,
   type RegisterPayload,
+  type ResetPasswordPayload,
   type SendRegisterCodePayload,
+  type SendResetPasswordCodePayload,
 } from '@/api/auth'
 import type { UserProfile } from '@/types/auth'
 
@@ -56,6 +60,9 @@ export const useAuthStore = defineStore('auth', {
     async register(payload: RegisterPayload) {
       return register(payload)
     },
+    async sendResetPasswordCode(payload: SendResetPasswordCodePayload) {
+      return sendResetPasswordCode(payload)
+    },
     async login(payload: LoginPayload) {
       const response = await login(payload)
       this.setAccessToken(response.data.token)
@@ -79,6 +86,10 @@ export const useAuthStore = defineStore('auth', {
     },
     async changePassword(payload: ChangePasswordPayload) {
       await changePassword(payload)
+      this.clearSession()
+    },
+    async resetPassword(payload: ResetPasswordPayload) {
+      await resetPassword(payload)
       this.clearSession()
     },
     clearSession() {

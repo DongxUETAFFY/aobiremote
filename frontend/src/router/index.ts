@@ -52,6 +52,12 @@ const router = createRouter({
       meta: { title: '注册', guestOnly: true },
     },
     {
+      path: '/auth/forgot-password',
+      name: 'forgot-password',
+      component: () => import('@/views/auth/ForgotPasswordView.vue'),
+      meta: { title: '忘记密码', guestOnly: true },
+    },
+    {
       path: '/auth/change-password',
       name: 'change-password',
       component: () => import('@/views/auth/ChangePasswordView.vue'),

@@ -31,6 +31,7 @@ const loading = ref(false)
 const items = ref<PublicPostListItem[]>([])
 const totalCount = ref(0)
 const hasMore = ref(false)
+const PAGE_SIZE = 30
 const currentPage = ref(1)
 
 // Filter
@@ -92,7 +93,7 @@ const loadData = async (page = 1) => {
   loading.value = true
   currentPage.value = page
   try {
-    const params: Record<string, any> = { pageNo: page, pageSize: 20 }
+    const params: Record<string, any> = { pageNo: page, pageSize: PAGE_SIZE }
     if (filterScope.value !== 'all') params.scope = filterScope.value
     if (filterDirection.value !== 'all') params.direction = filterDirection.value
     if (filterChannel.value !== 'all') params.channel = filterChannel.value
@@ -395,7 +396,7 @@ onBeforeUnmount(() => {
       <PaginationBar
         :current="currentPage"
         :total="totalCount"
-        :page-size="20"
+        :page-size="PAGE_SIZE"
         @change="handlePageChange"
       />
     </div>
@@ -476,7 +477,7 @@ onBeforeUnmount(() => {
         <PaginationBar
           :current="currentPage"
           :total="totalCount"
-          :page-size="20"
+          :page-size="PAGE_SIZE"
           @change="handlePageChange"
         />
       </div>

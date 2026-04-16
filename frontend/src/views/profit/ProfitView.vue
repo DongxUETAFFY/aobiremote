@@ -38,6 +38,7 @@ const summary = ref<TradeSummary>({
   magicCount: 0,
   magicBuyAmount: '0.00',
 })
+const PAGE_SIZE = 30
 const currentScope = ref<'all' | 'profit' | 'loss'>('all')
 const currentPage = ref(1)
 const currentCategory = ref<TradeCategory | ''>('')
@@ -96,7 +97,7 @@ const loadData = async (page = 1) => {
   try {
     const resp = await getTradePage({
       pageNo: page,
-      pageSize: 20,
+      pageSize: PAGE_SIZE,
       keyword: filterKeyword.value.trim() || undefined,
       scope: currentScope.value,
       category: currentCategory.value || undefined,
@@ -415,7 +416,7 @@ onBeforeUnmount(() => {
         <PaginationBar
           :current="currentPage"
           :total="totalCount"
-          :page-size="20"
+          :page-size="PAGE_SIZE"
           @change="handlePageChange"
         />
       </div>
@@ -475,7 +476,7 @@ onBeforeUnmount(() => {
         <PaginationBar
           :current="currentPage"
           :total="totalCount"
-          :page-size="20"
+          :page-size="PAGE_SIZE"
           @change="handlePageChange"
         />
       </div>

@@ -49,6 +49,41 @@ public class LocalAuthCacheService implements AuthCacheService {
     }
 
     @Override
+    public void storeResetPasswordCode(String email, String code, Duration ttl) {
+        stringEntries.put(resetPasswordCodeKey(email), TimedEntry.of(code, ttl));
+    }
+
+    @Override
+    public String getResetPasswordCode(String email) {
+        return getString(resetPasswordCodeKey(email));
+    }
+
+    @Override
+    public void removeResetPasswordCode(String email) {
+        stringEntries.remove(resetPasswordCodeKey(email));
+    }
+
+    @Override
+    public boolean hasResetPasswordInterval(String email) {
+        return getString(resetPasswordIntervalKey(email)) != null;
+    }
+
+    @Override
+    public void markResetPasswordInterval(String email, Duration ttl) {
+        stringEntries.put(resetPasswordIntervalKey(email), TimedEntry.of("1", ttl));
+    }
+
+    @Override
+    public int getResetPasswordHourlyCount(String email) {
+        return getCount(resetPasswordHourlyKey(email));
+    }
+
+    @Override
+    public void incrementResetPasswordHourlyCount(String email, Duration ttl) {
+        increment(resetPasswordHourlyKey(email), ttl);
+    }
+
+    @Override
     public int getLoginFailEmailCount(String email) {
         return getCount(loginFailEmailKey(email));
     }
@@ -115,6 +150,18 @@ public class LocalAuthCacheService implements AuthCacheService {
 
     private String registerHourlyKey(String email) {
         return "register-hourly:" + email;
+    }
+
+    private String resetPasswordCodeKey(String email) {
+        return "reset-password-code:" + email;
+    }
+
+    private String resetPasswordIntervalKey(String email) {
+        return "reset-password-interval:" + email;
+    }
+
+    private String resetPasswordHourlyKey(String email) {
+        return "reset-password-hourly:" + email;
     }
 
     private String loginFailEmailKey(String email) {

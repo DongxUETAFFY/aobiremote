@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 const props = defineProps<{
   current: number
@@ -11,71 +11,60 @@ const emit = defineEmits<{
   (e: 'change', page: number): void
 }>()
 
-const pageSize = computed(() => props.pageSize || 20)
-const totalPages = computed(() => Math.ceil(props.total / pageSize.value))
+const pageSize = computed(() => props.pageSize || 30)
+const totalPages = computed(() => Math.max(1, Math.ceil(props.total / pageSize.value)))
+const inputPage = ref(String(props.current))
 
-const pages = computed(() => {
-  const cur = props.current
-  const total = totalPages.value
-  if (total <= 7) {
-    return Array.from({ length: total }, (_, i) => i + 1)
-  }
-  const result: (number | '...')[] = []
-
-  result.push(1)
-
-  if (cur > 4) result.push('...')
-
-  const start = Math.max(2, cur - 1)
-  const end = Math.min(total - 1, cur + 1)
-
-  for (let i = start; i <= end; i++) {
-    result.push(i)
-  }
-
-  if (cur < total - 3) result.push('...')
-
-  result.push(total)
-
-  return result
-})
+watch(
+  () => [props.current, totalPages.value],
+  () => {
+    inputPage.value = String(Math.min(props.current, totalPages.value))
+  },
+  { immediate: true },
+)
 
 const go = (page: number) => {
   if (page < 1 || page > totalPages.value || page === props.current) return
   emit('change', page)
 }
+
+const submitInput = () => {
+  const parsed = Number.parseInt(inputPage.value.trim(), 10)
+  if (!Number.isFinite(parsed)) {
+    inputPage.value = String(props.current)
+    return
+  }
+  const normalized = Math.min(Math.max(parsed, 1), totalPages.value)
+  inputPage.value = String(normalized)
+  go(normalized)
+}
 </script>
 
 <template>
-  <div v-if="totalPages > 1" class="pagination">
-    <button
-      class="pagination__btn"
-      :disabled="current === 1"
-      title="首页"
-      @click="go(1)"
-    >
-      ‹‹
-    </button>
+  <div class="pagination">
+    <div class="pagination__status">
+      第 {{ current }} / {{ totalPages }} 页
+    </div>
     <button
       class="pagination__btn"
       :disabled="current === 1"
       title="上一页"
       @click="go(current - 1)"
     >
-      ‹
+      <
     </button>
-
-    <template v-for="(p, idx) in pages" :key="idx">
-      <button
-        v-if="p !== '...'"
-        class="pagination__btn"
-        :class="{ 'is-active': p === current }"
-        @click="go(p as number)"
-      >
-        {{ p }}
-      </button>
-      <span v-else class="pagination__ellipsis">…</span>
-    </template>
+    <div class="pagination__jump">
+      <span class="pagination__jump-label">跳转</span>
+      <input
+        v-model="inputPage"
+        class="pagination__input"
+        :disabled="totalPages === 1"
+        inputmode="numeric"
+        @blur="submitInput"
+        @keyup.enter="submitInput"
+      />
+      <span class="pagination__jump-total">/ {{ totalPages }}</span>
+    </div>
 
     <button
       class="pagination__btn"
@@ -83,15 +72,7 @@ const go = (page: number) => {
       title="下一页"
       @click="go(current + 1)"
     >
-      ›
-    </button>
-    <button
-      class="pagination__btn"
-      :disabled="current === totalPages"
-      title="末页"
-      @click="go(totalPages)"
-    >
-      › ›
+      >
     </button>
   </div>
 </template>
@@ -101,9 +82,15 @@ const go = (page: number) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 10px;
   padding: 16px 0;
   flex-wrap: wrap;
+}
+
+.pagination__status {
+  color: #7e6170;
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .pagination__btn {
@@ -130,18 +117,50 @@ const go = (page: number) => {
   cursor: not-allowed;
 }
 
-.pagination__btn.is-active {
-  background: linear-gradient(135deg, var(--ah-accent) 0%, var(--ah-accent-deep) 100%);
-  color: #fff;
-  border-color: transparent;
-  font-weight: 700;
-  box-shadow: 0 4px 12px rgba(240, 111, 154, 0.28);
+.pagination__jump {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px;
 }
 
-.pagination__ellipsis {
-  color: #b8a0ac;
-  padding: 0 4px;
+.pagination__jump-label,
+.pagination__jump-total {
+  color: #8d7080;
   font-size: 14px;
-  line-height: 36px;
+}
+
+.pagination__input {
+  width: 72px;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid rgba(205, 145, 168, 0.28);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #7e6170;
+  font-size: 14px;
+  text-align: center;
+  outline: none;
+}
+
+.pagination__input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.pagination__input:focus {
+  border-color: rgba(240, 111, 154, 0.45);
+  box-shadow: 0 0 0 3px rgba(240, 111, 154, 0.12);
+}
+
+@media (max-width: 600px) {
+  .pagination {
+    gap: 8px;
+  }
+
+  .pagination__status {
+    width: 100%;
+    text-align: center;
+  }
 }
 </style>

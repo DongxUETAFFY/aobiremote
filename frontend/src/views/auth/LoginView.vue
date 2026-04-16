@@ -57,6 +57,7 @@ const handleSubmit = async () => {
       </el-form>
 
       <div class="auth-card__actions">
+        <button type="button" @click="router.push('/auth/forgot-password')">忘记密码？去找回</button>
         <button type="button" @click="router.push('/auth/register')">没有账号？去注册</button>
       </div>
     </div>
@@ -105,6 +106,11 @@ const handleSubmit = async () => {
 
 .auth-card__actions {
   margin-top: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .auth-card__actions button {
@@ -113,5 +119,11 @@ const handleSubmit = async () => {
   color: var(--ah-accent-deep);
   cursor: pointer;
   padding: 0;
+}
+
+@media (max-width: 640px) {
+  .auth-card__actions {
+    justify-content: flex-start;
+  }
 }
 </style>

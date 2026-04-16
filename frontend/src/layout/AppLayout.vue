@@ -33,6 +33,34 @@ const handleLogout = async () => {
   <div class="layout-shell">
     <header class="layout-hero ah-page-shell">
       <div class="layout-hero__card ah-glass-card">
+        <div class="layout-hero__actions">
+          <template v-if="authStore.isAuthenticated">
+            <div class="layout-hero__account-chip">
+              <span class="layout-hero__user">{{ currentUserLabel }}</span>
+              <span class="layout-hero__divider" aria-hidden="true"></span>
+              <button
+                class="layout-hero__action-link"
+                type="button"
+                @click="goTo('/auth/change-password')"
+              >
+                修改密码
+              </button>
+              <button class="layout-hero__action-link is-danger" type="button" @click="handleLogout">
+                退出登录
+              </button>
+            </div>
+          </template>
+          <template v-else>
+            <div class="layout-hero__account-chip">
+              <button class="layout-hero__action-link" type="button" @click="goTo('/auth/login')">
+                登录
+              </button>
+              <button class="layout-hero__action-link is-primary" type="button" @click="goTo('/auth/register')">
+                注册
+              </button>
+            </div>
+          </template>
+        </div>
         <div class="layout-hero__copy">
           <p class="layout-hero__eyebrow">Aobi Helper Web</p>
           <h1>{{ currentTitle }}</h1>
@@ -53,23 +81,6 @@ const handleLogout = async () => {
           >
             {{ item.label }}
           </button>
-        </div>
-        <div class="layout-nav__account">
-          <template v-if="authStore.isAuthenticated">
-            <span class="layout-nav__user">{{ currentUserLabel }}</span>
-            <button class="layout-nav__ghost" type="button" @click="goTo('/auth/change-password')">
-              修改密码
-            </button>
-            <button class="layout-nav__ghost" type="button" @click="handleLogout">
-              退出登录
-            </button>
-          </template>
-          <template v-else>
-            <button class="layout-nav__ghost" type="button" @click="goTo('/auth/login')">登录</button>
-            <button class="layout-nav__item is-active" type="button" @click="goTo('/auth/register')">
-              注册
-            </button>
-          </template>
         </div>
       </div>
     </nav>
@@ -92,9 +103,19 @@ const handleLogout = async () => {
 }
 
 .layout-hero__card {
+  position: relative;
   justify-content: space-between;
   gap: 24px;
   padding: 30px 34px;
+}
+
+.layout-hero__actions {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 .layout-hero__eyebrow {
@@ -112,40 +133,18 @@ const handleLogout = async () => {
   color: var(--ah-title);
 }
 
-.layout-hero__desc {
-  max-width: 620px;
-  margin: 14px 0 0;
-  color: var(--ah-text);
-}
-
-.layout-hero__meta {
-  display: grid;
-  gap: 10px;
-  min-width: 260px;
-}
-
-.layout-hero__meta span {
-  display: block;
-  padding: 12px 16px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.68);
-  border: 1px solid rgba(205, 145, 168, 0.18);
-  color: #7b5a6b;
-}
-
 .layout-nav {
   margin-top: 18px;
 }
 
 .layout-nav__card {
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 16px;
   padding: 16px;
   flex-wrap: wrap;
 }
 
-.layout-nav__links,
-.layout-nav__account {
+.layout-nav__links {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -172,19 +171,63 @@ const handleLogout = async () => {
   margin-top: 20px;
 }
 
-.layout-nav__ghost {
-  border: 1px solid rgba(205, 145, 168, 0.28);
+.layout-hero__account-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 5px 8px 5px 12px;
   border-radius: 999px;
-  padding: 12px 18px;
-  cursor: pointer;
-  color: #7e6170;
-  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(205, 145, 168, 0.2);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.88) 0%, rgba(255, 245, 248, 0.86) 100%);
+  box-shadow:
+    0 14px 28px rgba(217, 154, 176, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
 }
 
-.layout-nav__user {
-  font-size: 14px;
+.layout-hero__action-link {
+  border: 0;
+  border-radius: 999px;
+  padding: 7px 10px;
+  cursor: pointer;
+  color: #8b6376;
+  background: transparent;
+  font-size: 12px;
+  line-height: 1;
+  transition: 0.2s ease;
+}
+
+.layout-hero__action-link:hover {
+  color: var(--ah-accent-deep);
+  background: rgba(255, 143, 177, 0.14);
+}
+
+.layout-hero__action-link.is-primary {
+  color: #fff;
+  background: linear-gradient(135deg, var(--ah-accent) 0%, var(--ah-accent-deep) 100%);
+  box-shadow: 0 8px 18px rgba(240, 111, 154, 0.16);
+}
+
+.layout-hero__user {
+  font-size: 12px;
+  font-weight: 600;
   color: #7e6170;
-  padding-right: 6px;
+  max-width: 132px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.layout-hero__divider {
+  width: 1px;
+  height: 16px;
+  background: rgba(205, 145, 168, 0.24);
+}
+
+.layout-hero__action-link.is-danger:hover {
+  color: #c65b7f;
+  background: rgba(233, 120, 154, 0.12);
 }
 
 @media (max-width: 960px) {
@@ -197,18 +240,18 @@ const handleLogout = async () => {
     font-size: 30px;
   }
 
-  .layout-hero__meta {
+  .layout-hero__actions {
+    position: static;
     width: 100%;
-    min-width: 0;
+    justify-content: flex-end;
+    margin-bottom: 8px;
+  }
+
+  .layout-hero__account-chip {
+    margin-left: auto;
   }
 
   .layout-nav__card {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .layout-nav__links,
-  .layout-nav__account {
     justify-content: flex-start;
   }
 }

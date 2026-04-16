@@ -7,6 +7,7 @@ import io.github.dongxuetaffy.aobihelper.auth.cache.AuthCacheService;
 import io.github.dongxuetaffy.aobihelper.auth.dto.ChangePasswordRequest;
 import io.github.dongxuetaffy.aobihelper.auth.dto.LoginRequest;
 import io.github.dongxuetaffy.aobihelper.auth.dto.RegisterRequest;
+import io.github.dongxuetaffy.aobihelper.auth.dto.ResetPasswordRequest;
 import io.github.dongxuetaffy.aobihelper.auth.entity.UserAccount;
 import io.github.dongxuetaffy.aobihelper.auth.mapper.UserAccountMapper;
 import io.github.dongxuetaffy.aobihelper.auth.service.AuthService;
@@ -66,6 +67,26 @@ public class AuthServiceImpl implements AuthService {
         );
         authCacheService.incrementRegisterHourlyCount(normalizedEmail, Duration.ofHours(1));
         dispatchRegisterCode(normalizedEmail, code, requestIp);
+    }
+
+    @Override
+    public void sendResetPasswordCode(String email, String requestIp) {
+        String normalizedEmail = normalizeEmail(email);
+        ensureEmailRegistered(normalizedEmail);
+        validateResetPasswordCodeRateLimit(normalizedEmail);
+
+        String code = generateVerificationCode();
+        authCacheService.storeResetPasswordCode(
+            normalizedEmail,
+            code,
+            Duration.ofSeconds(authProperties.getVerificationCodeExpireSeconds())
+        );
+        authCacheService.markResetPasswordInterval(
+            normalizedEmail,
+            Duration.ofSeconds(authProperties.getVerificationCodeSendIntervalSeconds())
+        );
+        authCacheService.incrementResetPasswordHourlyCount(normalizedEmail, Duration.ofHours(1));
+        dispatchResetPasswordCode(normalizedEmail, code, requestIp);
     }
 
     @Override
@@ -169,11 +190,41 @@ public class AuthServiceImpl implements AuthService {
         StpUtil.logout(userId);
     }
 
+    @Override
+    public void resetPassword(ResetPasswordRequest request) {
+        String normalizedEmail = normalizeEmail(request.getEmail());
+        UserAccount userAccount = getUserByEmail(normalizedEmail);
+        if (userAccount == null) {
+            throw new BusinessException(BusinessCode.RECORD_NOT_FOUND, "User not found");
+        }
+
+        String cachedCode = authCacheService.getResetPasswordCode(normalizedEmail);
+        if (!Objects.equals(cachedCode, request.getCode())) {
+            throw new BusinessException(BusinessCode.VERIFICATION_CODE_INVALID, "Verification code is invalid or expired");
+        }
+
+        userAccount.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        userAccount.setUpdatedAt(LocalDateTime.now());
+        userAccountMapper.updateById(userAccount);
+        authCacheService.removeResetPasswordCode(normalizedEmail);
+        StpUtil.logout(userAccount.getId());
+    }
+
     private void validateSendCodeRateLimit(String normalizedEmail) {
         if (authCacheService.hasRegisterInterval(normalizedEmail)) {
             throw new BusinessException(BusinessCode.TOO_FREQUENT, "Verification code was sent too frequently");
         }
         int hourlyCount = authCacheService.getRegisterHourlyCount(normalizedEmail);
+        if (hourlyCount >= authProperties.getVerificationCodeHourLimit()) {
+            throw new BusinessException(BusinessCode.TOO_FREQUENT, "Verification code send limit reached");
+        }
+    }
+
+    private void validateResetPasswordCodeRateLimit(String normalizedEmail) {
+        if (authCacheService.hasResetPasswordInterval(normalizedEmail)) {
+            throw new BusinessException(BusinessCode.TOO_FREQUENT, "Verification code was sent too frequently");
+        }
+        int hourlyCount = authCacheService.getResetPasswordHourlyCount(normalizedEmail);
         if (hourlyCount >= authProperties.getVerificationCodeHourLimit()) {
             throw new BusinessException(BusinessCode.TOO_FREQUENT, "Verification code send limit reached");
         }
@@ -230,8 +281,36 @@ public class AuthServiceImpl implements AuthService {
         }
     }
 
+    private void dispatchResetPasswordCode(String email, String code, String requestIp) {
+        if (!authProperties.isMailEnabled()) {
+            if (authProperties.isDevLogVerificationCode()) {
+                log.info("Reset password code for {} is {}. requestIp={}", email, code, requestIp);
+            }
+            return;
+        }
+
+        try {
+            MimeMessage message = javaMailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, false, "UTF-8");
+            helper.setTo(email);
+            helper.setSubject("Aobi Helper Reset Password Code");
+            helper.setText(buildResetPasswordCodeMailContent(code), false);
+            helper.setFrom(new InternetAddress("no-reply@example.com"));
+            javaMailSender.send(message);
+        } catch (Exception exception) {
+            log.error("Failed to send reset password code email to {}", email, exception);
+            throw new BusinessException(BusinessCode.STATE_INVALID, "Failed to send verification code");
+        }
+    }
+
     private String buildRegisterCodeMailContent(String code) {
         return "Welcome to Aobi Helper Web.\n\n"
+            + "Your verification code is: " + code + "\n"
+            + "The code is valid for 5 minutes.";
+    }
+
+    private String buildResetPasswordCodeMailContent(String code) {
+        return "You are resetting your Aobi Helper Web password.\n\n"
             + "Your verification code is: " + code + "\n"
             + "The code is valid for 5 minutes.";
     }
@@ -239,6 +318,12 @@ public class AuthServiceImpl implements AuthService {
     private void ensureEmailNotRegistered(String normalizedEmail) {
         if (getUserByEmail(normalizedEmail) != null) {
             throw new BusinessException(BusinessCode.EMAIL_ALREADY_REGISTERED, "Email has already been registered");
+        }
+    }
+
+    private void ensureEmailRegistered(String normalizedEmail) {
+        if (getUserByEmail(normalizedEmail) == null) {
+            throw new BusinessException(BusinessCode.RECORD_NOT_FOUND, "User not found");
         }
     }
 

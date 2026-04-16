@@ -48,8 +48,8 @@ public class InventoryItemServiceImpl extends ServiceImpl<InventoryItemMapper, I
     private static final Set<String> ALLOWED_CATEGORIES = Set.of("magic", "obi");
     private static final Set<String> ALLOWED_SORT_TYPES = Set.of("buyTimeDesc", "buyPriceDesc");
     private static final long DEFAULT_PAGE_NO = 1L;
-    private static final long DEFAULT_PAGE_SIZE = 10L;
-    private static final long MAX_PAGE_SIZE = 50L;
+    private static final long DEFAULT_PAGE_SIZE = 30L;
+    private static final long MAX_PAGE_SIZE = 30L;
 
     private final PublicPostMapper publicPostMapper;
     private final PublicPostFlagMapper publicPostFlagMapper;

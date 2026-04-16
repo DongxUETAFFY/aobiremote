@@ -5,6 +5,10 @@ export interface SendRegisterCodePayload {
   email: string
 }
 
+export interface SendResetPasswordCodePayload {
+  email: string
+}
+
 export interface RegisterPayload {
   email: string
   code: string
@@ -21,6 +25,12 @@ export interface ChangePasswordPayload {
   newPassword: string
 }
 
+export interface ResetPasswordPayload {
+  email: string
+  code: string
+  newPassword: string
+}
+
 export const sendRegisterCode = async (payload: SendRegisterCodePayload) => {
   const { data } = await http.post<ApiResponse<null>>('/auth/send-register-code', payload)
   return data
@@ -28,6 +38,11 @@ export const sendRegisterCode = async (payload: SendRegisterCodePayload) => {
 
 export const register = async (payload: RegisterPayload) => {
   const { data } = await http.post<ApiResponse<RegisterResponse>>('/auth/register', payload)
+  return data
+}
+
+export const sendResetPasswordCode = async (payload: SendResetPasswordCodePayload) => {
+  const { data } = await http.post<ApiResponse<null>>('/auth/send-reset-password-code', payload)
   return data
 }
 
@@ -48,5 +63,10 @@ export const fetchCurrentUser = async () => {
 
 export const changePassword = async (payload: ChangePasswordPayload) => {
   const { data } = await http.post<ApiResponse<null>>('/auth/change-password', payload)
+  return data
+}
+
+export const resetPassword = async (payload: ResetPasswordPayload) => {
+  const { data } = await http.post<ApiResponse<null>>('/auth/reset-password', payload)
   return data
 }

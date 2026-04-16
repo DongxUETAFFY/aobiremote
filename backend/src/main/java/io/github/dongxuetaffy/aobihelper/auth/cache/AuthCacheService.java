@@ -17,6 +17,20 @@ public interface AuthCacheService {
 
     void incrementRegisterHourlyCount(String email, Duration ttl);
 
+    void storeResetPasswordCode(String email, String code, Duration ttl);
+
+    String getResetPasswordCode(String email);
+
+    void removeResetPasswordCode(String email);
+
+    boolean hasResetPasswordInterval(String email);
+
+    void markResetPasswordInterval(String email, Duration ttl);
+
+    int getResetPasswordHourlyCount(String email);
+
+    void incrementResetPasswordHourlyCount(String email, Duration ttl);
+
     int getLoginFailEmailCount(String email);
 
     int getLoginFailIpCount(String ip);
