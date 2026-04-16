@@ -44,8 +44,8 @@ const channelOptions: { label: string; value: TradeChannel }[] = [
 ]
 
 const categoryOptions: { label: string; value: TradeCategory }[] = [
-  { label: '魔法装备', value: 'magic' },
-  { label: 'obi', value: 'obi' },
+  { label: '奥比时装', value: 'obi' },
+  { label: '魔力时装', value: 'magic' },
 ]
 
 const form = reactive<TradeUpsertRequest>({
@@ -55,7 +55,7 @@ const form = reactive<TradeUpsertRequest>({
   sellPrice: 0,
   sellTime: '',
   channel: 'xianyu',
-  category: 'magic',
+  category: 'obi',
   remark: '',
   imageFileId: '',
 })
@@ -144,7 +144,7 @@ const resetForm = () => {
   form.sellPrice = 0
   form.sellTime = ''
   form.channel = 'xianyu'
-  form.category = 'magic'
+  form.category = 'obi'
   form.remark = ''
   form.imageFileId = ''
   compressionResult.value = null

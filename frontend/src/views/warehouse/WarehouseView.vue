@@ -44,8 +44,8 @@ const channelOptions: { label: string; value: InventoryChannel }[] = [
 ]
 
 const categoryOptions: { label: string; value: InventoryCategory }[] = [
-  { label: '魔法装备', value: 'magic' },
-  { label: 'obi', value: 'obi' },
+  { label: '奥比时装', value: 'obi' },
+  { label: '魔力时装', value: 'magic' },
 ]
 
 const form = reactive<InventoryUpsertRequest>({
@@ -53,7 +53,7 @@ const form = reactive<InventoryUpsertRequest>({
   buyPrice: 0,
   buyTime: '',
   channel: 'xianyu',
-  category: 'magic',
+  category: 'obi',
   remark: '',
   imageFileId: '',
 })
@@ -142,7 +142,7 @@ const resetForm = () => {
   form.buyPrice = 0
   form.buyTime = ''
   form.channel = 'xianyu'
-  form.category = 'magic'
+  form.category = 'obi'
   form.remark = ''
   form.imageFileId = ''
   compressionResult.value = null

@@ -54,8 +54,8 @@ const channelOptions: { label: string; value: PublicPostChannel | 'all' }[] = [
 
 const categoryOptions: { label: string; value: PublicPostCategory | 'all' }[] = [
   { label: '全部分类', value: 'all' },
-  { label: '魔法装备', value: 'magic' },
-  { label: 'obi', value: 'obi' },
+  { label: '奥比时装', value: 'obi' },
+  { label: '魔力时装', value: 'magic' },
 ]
 
 const form = reactive<PublicPostCreateRequest>({
@@ -64,7 +64,7 @@ const form = reactive<PublicPostCreateRequest>({
   tradeTime: '',
   direction: 'sell',
   channel: 'xianyu',
-  category: 'magic',
+  category: 'obi',
   remark: '',
   imageFileId: '',
 })
@@ -149,7 +149,7 @@ const resetForm = () => {
   form.tradeTime = new Date().toISOString().split('T')[0]
   form.direction = 'sell'
   form.channel = 'xianyu'
-  form.category = 'magic'
+  form.category = 'obi'
   form.remark = ''
   form.imageFileId = ''
   compressionResult.value = null
@@ -262,6 +262,7 @@ const handleToggleUntrusted = async (item: PublicPostListItem) => {
 const channelLabel = (ch: PublicPostChannel) => channelOptions.find((o) => o.value === ch)?.label || ch
 const categoryLabel = (cat: PublicPostCategory) => categoryOptions.find((o) => o.value === cat)?.label || cat
 const formatDate = (dateStr: string) => dateStr || '-'
+const directionLabel = (direction: 'buy' | 'sell') => (direction === 'buy' ? '买入' : '卖出')
 
 // Back to top
 const showBackToTop = ref(false)
@@ -309,8 +310,8 @@ onBeforeUnmount(() => {
         <span class="public-zone-filters__label">方向</span>
         <el-radio-group v-model="filterDirection" size="small" @change="handleFilterChange">
           <el-radio-button label="all">全部</el-radio-button>
-          <el-radio-button label="buy">求购</el-radio-button>
-          <el-radio-button label="sell">出售</el-radio-button>
+          <el-radio-button label="buy">买入</el-radio-button>
+          <el-radio-button label="sell">卖出</el-radio-button>
         </el-radio-group>
       </div>
       <div class="public-zone-filters__group">
@@ -364,7 +365,7 @@ onBeforeUnmount(() => {
           <div class="public-zone-item__header">
             <h3 class="public-zone-item__name">{{ item.itemName }}</h3>
             <span class="public-zone-item__direction" :class="`is-${item.direction}`">
-              {{ item.direction === 'buy' ? '求购' : '出售' }}
+              {{ directionLabel(item.direction) }}
             </span>
             <span class="public-zone-item__price">¥{{ item.price }}</span>
           </div>
@@ -441,8 +442,8 @@ onBeforeUnmount(() => {
         <div class="public-zone-form__row">
           <el-form-item label="交易方向">
             <el-radio-group v-model="form.direction">
-              <el-radio-button label="sell">出售</el-radio-button>
-              <el-radio-button label="buy">求购</el-radio-button>
+              <el-radio-button label="buy">买入</el-radio-button>
+              <el-radio-button label="sell">卖出</el-radio-button>
             </el-radio-group>
           </el-form-item>
           <el-form-item label="渠道">
