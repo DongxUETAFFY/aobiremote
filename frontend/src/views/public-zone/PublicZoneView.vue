@@ -1,12 +1,15 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import FloatingQuickNav from '@/components/common/FloatingQuickNav.vue'
 import SquareImagePreview from '@/components/common/SquareImagePreview.vue'
-import PaginationBar from '@/components/common/PaginationBar.vue'
+import PublicZoneDesktopContent from './PublicZoneDesktopContent.vue'
+import PublicZoneMobileContent from './PublicZoneMobileContent.vue'
 import { uploadImage } from '@/api/file'
 import {
   compressImageBeforeUpload,
   formatFileSize,
+  IMAGE_INPUT_ACCEPT,
   type CompressionResult,
 } from '@/utils/image-upload'
 import {
@@ -25,25 +28,24 @@ import type {
 } from '@/types/public-post'
 
 const authStore = useAuthStore()
+const MOBILE_BREAKPOINT = 768
 
-// --- State ---
 const loading = ref(false)
 const items = ref<PublicPostListItem[]>([])
 const totalCount = ref(0)
 const hasMore = ref(false)
 const PAGE_SIZE = 30
 const currentPage = ref(1)
+const isMobile = ref(false)
 
-// Filter
 const filterScope = ref<'all' | 'mine'>('all')
 const filterDirection = ref<'all' | 'buy' | 'sell'>('all')
-const filterChannel = ref<PublicPostChannel | 'all'>('all' as PublicPostChannel | 'all')
-const filterCategory = ref<PublicPostCategory | 'all'>('all' as PublicPostCategory | 'all')
+const filterChannel = ref<PublicPostChannel | 'all'>('all')
+const filterCategory = ref<PublicPostCategory | 'all'>('all')
 const filterKeyword = ref('')
 const filterMinPrice = ref<number | null>(null)
 const filterMaxPrice = ref<number | null>(null)
 
-// Form dialog
 const dialogVisible = ref(false)
 const dialogTitle = ref('发布交易')
 const editingId = ref<number | null>(null)
@@ -73,7 +75,6 @@ const form = reactive<PublicPostCreateRequest>({
   imageFileId: '',
 })
 
-// Image upload state
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const compressionResult = ref<CompressionResult | null>(null)
 const uploadingImage = ref(false)
@@ -88,7 +89,6 @@ const compressionSummary = computed(() => {
   return `原图 ${formatFileSize(originalSize)}，压缩后 ${formatFileSize(compressedSize)}`
 })
 
-// --- Methods ---
 const loadData = async (page = 1) => {
   loading.value = true
   currentPage.value = page
@@ -103,11 +103,7 @@ const loadData = async (page = 1) => {
     if (filterMaxPrice.value != null) params.maxPrice = String(filterMaxPrice.value)
 
     const resp = await getPublicPostPage(params)
-    if (page === 1) {
-      items.value = resp.data.items
-    } else {
-      items.value.push(...resp.data.items)
-    }
+    items.value = resp.data.items
     totalCount.value = resp.data.totalCount
     hasMore.value = resp.data.hasMore
   } catch (error: any) {
@@ -202,8 +198,8 @@ const handleFileChange = async (event: Event) => {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) return
-  uploadingImage.value = true
 
+  uploadingImage.value = true
   try {
     compressionResult.value = await compressImageBeforeUpload(file)
     const resp = await uploadImage(compressionResult.value.file, 'public')
@@ -285,206 +281,116 @@ const handleToggleUntrusted = async (item: PublicPostListItem) => {
   }
 }
 
-const channelLabel = (ch: PublicPostChannel) => channelOptions.find((o) => o.value === ch)?.label || ch
-const categoryLabel = (cat: PublicPostCategory) => categoryOptions.find((o) => o.value === cat)?.label || cat
+const channelLabel = (channel: PublicPostChannel) => channelOptions.find((option) => option.value === channel)?.label || channel
+const categoryLabel = (category: PublicPostCategory) => categoryOptions.find((option) => option.value === category)?.label || category
 const formatDate = (dateStr: string) => {
   if (!dateStr) return '-'
   return dateStr.replace('T', ' ').replace(/\.\d+$/, '').replace(/Z$/, '')
 }
 const directionLabel = (direction: 'buy' | 'sell') => (direction === 'buy' ? '买入' : '卖出')
 
-// Back to top
 const showBackToTop = ref(false)
+
 const handleScroll = () => {
   showBackToTop.value = window.scrollY > 400
 }
+
+const handleResize = () => {
+  isMobile.value = window.innerWidth <= MOBILE_BREAKPOINT
+}
+
 const scrollToTop = () => {
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 onMounted(() => {
+  handleResize()
   loadData(1)
   window.addEventListener('scroll', handleScroll, { passive: true })
+  window.addEventListener('resize', handleResize, { passive: true })
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('scroll', handleScroll)
+  window.removeEventListener('resize', handleResize)
 })
 </script>
 
 <template>
   <div class="ah-page-shell public-zone-page">
-    <!-- Header -->
-    <section class="public-zone-header ah-glass-card ah-page-section">
-      <div class="public-zone-header__info">
-        <p class="public-zone-header__eyebrow">公开交易区</p>
-        <h2>社区动态</h2>
-        <p class="public-zone-header__desc">共 {{ totalCount }} 条交易记录</p>
-      </div>
-      <el-button v-if="authStore.isAuthenticated" type="primary" @click="openAddDialog">
-        + 发布交易
-      </el-button>
-    </section>
+    <PublicZoneMobileContent
+      v-if="isMobile"
+      v-model:filter-keyword="filterKeyword"
+      v-model:filter-min-price="filterMinPrice"
+      v-model:filter-max-price="filterMaxPrice"
+      v-model:filter-scope="filterScope"
+      v-model:filter-direction="filterDirection"
+      v-model:filter-channel="filterChannel"
+      v-model:filter-category="filterCategory"
+      :loading="loading"
+      :items="items"
+      :total-count="totalCount"
+      :current-page="currentPage"
+      :page-size="PAGE_SIZE"
+      :is-authenticated="authStore.isAuthenticated"
+      :channel-options="channelOptions"
+      :category-options="categoryOptions"
+      :channel-label="channelLabel"
+      :category-label="categoryLabel"
+      :format-date="formatDate"
+      :direction-label="directionLabel"
+      @open-add="openAddDialog"
+      @page-change="handlePageChange"
+      @keyword-search="handleKeywordSearch"
+      @keyword-clear="handleKeywordClear"
+      @price-search="handlePriceSearch"
+      @price-clear="handlePriceClear"
+      @filter-change="handleFilterChange"
+      @edit="openEditDialog"
+      @delete="handleDelete"
+      @toggle-untrusted="handleToggleUntrusted"
+    />
 
-    <!-- Filters -->
-    <section class="public-zone-filters ah-glass-card ah-page-section">
-      <div class="public-zone-filters__group public-zone-filters__search">
-        <span class="public-zone-filters__label">名称</span>
-        <el-input
-          v-model="filterKeyword"
-          class="public-zone-filters__search-input"
-          clearable
-          placeholder="按物品名称筛选"
-          @keyup.enter="handleKeywordSearch"
-          @clear="handleKeywordClear"
-        />
-        <el-button @click="handleKeywordSearch">搜索</el-button>
-      </div>
-      <div class="public-zone-filters__group public-zone-filters__price">
-        <span class="public-zone-filters__label">价格</span>
-        <el-input-number
-          v-model="filterMinPrice"
-          class="public-zone-filters__price-input"
-          :min="0"
-          :precision="2"
-          :step="1"
-          placeholder="最低价"
-        />
-        <span class="public-zone-filters__range-sep">-</span>
-        <el-input-number
-          v-model="filterMaxPrice"
-          class="public-zone-filters__price-input"
-          :min="0"
-          :precision="2"
-          :step="1"
-          placeholder="最高价"
-        />
-        <el-button @click="handlePriceSearch">查询</el-button>
-        <el-button @click="handlePriceClear">清空</el-button>
-      </div>
-      <div class="public-zone-filters__group">
-        <span class="public-zone-filters__label">范围</span>
-        <el-radio-group v-model="filterScope" size="small" @change="handleFilterChange">
-          <el-radio-button label="all">全部记录</el-radio-button>
-          <el-radio-button label="mine">我的记录</el-radio-button>
-        </el-radio-group>
-      </div>
-      <div class="public-zone-filters__group">
-        <span class="public-zone-filters__label">方向</span>
-        <el-radio-group v-model="filterDirection" size="small" @change="handleFilterChange">
-          <el-radio-button label="all">全部</el-radio-button>
-          <el-radio-button label="buy">买入</el-radio-button>
-          <el-radio-button label="sell">卖出</el-radio-button>
-        </el-radio-group>
-      </div>
-      <div class="public-zone-filters__group">
-        <span class="public-zone-filters__label">渠道</span>
-        <el-select v-model="filterChannel" size="small" @change="handleFilterChange">
-          <el-option v-for="opt in channelOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
-        </el-select>
-      </div>
-      <div class="public-zone-filters__group">
-        <span class="public-zone-filters__label">分类</span>
-        <el-select v-model="filterCategory" size="small" @change="handleFilterChange">
-          <el-option v-for="opt in categoryOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
-        </el-select>
-      </div>
-    </section>
+    <PublicZoneDesktopContent
+      v-else
+      v-model:filter-keyword="filterKeyword"
+      v-model:filter-min-price="filterMinPrice"
+      v-model:filter-max-price="filterMaxPrice"
+      v-model:filter-scope="filterScope"
+      v-model:filter-direction="filterDirection"
+      v-model:filter-channel="filterChannel"
+      v-model:filter-category="filterCategory"
+      :loading="loading"
+      :items="items"
+      :total-count="totalCount"
+      :current-page="currentPage"
+      :page-size="PAGE_SIZE"
+      :is-authenticated="authStore.isAuthenticated"
+      :channel-options="channelOptions"
+      :category-options="categoryOptions"
+      :channel-label="channelLabel"
+      :category-label="categoryLabel"
+      :format-date="formatDate"
+      :direction-label="directionLabel"
+      @open-add="openAddDialog"
+      @page-change="handlePageChange"
+      @keyword-search="handleKeywordSearch"
+      @keyword-clear="handleKeywordClear"
+      @price-search="handlePriceSearch"
+      @price-clear="handlePriceClear"
+      @filter-change="handleFilterChange"
+      @edit="openEditDialog"
+      @delete="handleDelete"
+      @toggle-untrusted="handleToggleUntrusted"
+    />
 
-    <!-- Top Pagination -->
-    <div class="public-zone-pagination ah-glass-card">
-      <PaginationBar
-        :current="currentPage"
-        :total="totalCount"
-        :page-size="PAGE_SIZE"
-        @change="handlePageChange"
-      />
-    </div>
-
-    <!-- Loading State -->
-    <div v-if="loading && items.length === 0" class="public-zone-loading">
-      <span class="public-zone-loading__spinner" />
-      <p>加载中...</p>
-    </div>
-
-    <!-- Empty State -->
-    <div v-else-if="items.length === 0" class="public-zone-empty ah-glass-card ah-page-section">
-      <p>还没有任何公开交易</p>
-      <p class="public-zone-empty__sub">成为第一个发布的人吧</p>
-    </div>
-
-    <!-- Post List -->
-    <div v-else class="public-zone-list">
-      <div
-        v-for="item in items"
-        :key="item.id"
-        class="public-zone-item ah-glass-card ah-page-section"
-      >
-        <div class="public-zone-item__thumb">
-          <SquareImagePreview :file-id="item.imageFileId" empty-text="无图" />
-        </div>
-
-        <div class="public-zone-item__body">
-          <div class="public-zone-item__header">
-            <h3 class="public-zone-item__name">{{ item.itemName }}</h3>
-            <span class="public-zone-item__direction" :class="`is-${item.direction}`">
-              {{ directionLabel(item.direction) }}
-            </span>
-            <span class="public-zone-item__price">¥{{ item.price }}</span>
-          </div>
-
-          <div class="public-zone-item__meta">
-            <span>{{ channelLabel(item.channel) }}</span>
-            <span class="public-zone-item__dot">·</span>
-            <span>{{ categoryLabel(item.category) }}</span>
-            <span class="public-zone-item__dot">·</span>
-            <span>{{ formatDate(item.tradeTime) }}</span>
-          </div>
-
-          <div class="public-zone-item__footer">
-            <div class="public-zone-item__left">
-              <div class="public-zone-item__time">
-                <span>{{ formatDate(item.createdAt) }}</span>
-              </div>
-              <div class="public-zone-item__untrusted-row">
-                <button
-                  v-if="authStore.isAuthenticated && !item.mine"
-                  type="button"
-                  class="public-zone-item__untrusted-badge public-zone-item__untrusted-trigger"
-                  :class="{ 'is-active': item.untrusted }"
-                  @click="handleToggleUntrusted(item)"
-                >
-                  不可信 × {{ item.untrustedCount }}
-                </button>
-                <span v-else class="public-zone-item__untrusted-badge">
-                  不可信 × {{ item.untrustedCount }}
-                </span>
-              </div>
-            </div>
-
-            <div class="public-zone-item__actions">
-              <template v-if="item.mine">
-                <el-button size="small" @click="openEditDialog(item)">编辑</el-button>
-                <el-button size="small" type="danger" @click="handleDelete(item)">删除</el-button>
-              </template>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Bottom Pagination -->
-      <div class="public-zone-pagination ah-glass-card">
-        <PaginationBar
-          :current="currentPage"
-          :total="totalCount"
-          :page-size="PAGE_SIZE"
-          @change="handlePageChange"
-        />
-      </div>
-    </div>
-
-    <!-- Add/Edit Dialog -->
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="520px" :close-on-click-modal="false">
+    <el-dialog
+      v-model="dialogVisible"
+      :title="dialogTitle"
+      :width="isMobile ? '100%' : '520px'"
+      :fullscreen="isMobile"
+      :close-on-click-modal="false"
+    >
       <el-form label-position="top" class="public-zone-form">
         <el-form-item label="物品名称">
           <el-input v-model="form.itemName" placeholder="例如：龙娃惊讶" maxlength="40" />
@@ -514,10 +420,10 @@ onBeforeUnmount(() => {
           <el-form-item label="渠道">
             <el-select v-model="form.channel">
               <el-option
-                v-for="opt in channelOptions.filter(o => o.value !== 'all')"
-                :key="opt.value"
-                :label="opt.label"
-                :value="opt.value"
+                v-for="option in channelOptions.filter((item) => item.value !== 'all')"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
               />
             </el-select>
           </el-form-item>
@@ -527,10 +433,10 @@ onBeforeUnmount(() => {
           <el-form-item label="分类">
             <el-select v-model="form.category">
               <el-option
-                v-for="opt in categoryOptions.filter(o => o.value !== 'all')"
-                :key="opt.value"
-                :label="opt.label"
-                :value="opt.value"
+                v-for="option in categoryOptions.filter((item) => item.value !== 'all')"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
               />
             </el-select>
           </el-form-item>
@@ -544,8 +450,8 @@ onBeforeUnmount(() => {
           <input
             ref="fileInputRef"
             type="file"
-            accept="image/jpeg,image/png,image/webp"
-            style="display:none"
+            :accept="IMAGE_INPUT_ACCEPT"
+            style="display: none"
             @change="handleFileChange"
           />
 
@@ -571,7 +477,6 @@ onBeforeUnmount(() => {
       </template>
     </el-dialog>
 
-    <!-- Floating Action Buttons -->
     <transition name="fab">
       <button v-if="showBackToTop" class="fab fab--top" type="button" title="回顶部" @click="scrollToTop">
         ↑
@@ -583,268 +488,15 @@ onBeforeUnmount(() => {
     <button v-if="authStore.isAuthenticated" class="fab fab--add" type="button" title="发布交易" @click="openAddDialog">
       +
     </button>
+    <FloatingQuickNav />
   </div>
 </template>
 
 <style scoped>
 .public-zone-page {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
   padding: 0 0 40px;
 }
 
-/* Header */
-.public-zone-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 20px;
-}
-
-.public-zone-header__eyebrow {
-  margin: 0 0 8px;
-  color: #b27f93;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.public-zone-header h2 {
-  margin: 0;
-  color: var(--ah-title);
-  font-size: 28px;
-}
-
-.public-zone-header__desc {
-  margin: 8px 0 0;
-  color: var(--ah-text);
-}
-
-/* Filters */
-.public-zone-filters {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  flex-wrap: wrap;
-}
-
-.public-zone-filters__group {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.public-zone-filters__search {
-  flex: 1 1 320px;
-}
-
-.public-zone-filters__search-input {
-  min-width: 220px;
-  max-width: 360px;
-}
-
-.public-zone-filters__price {
-  flex: 1 1 420px;
-  flex-wrap: wrap;
-}
-
-.public-zone-filters__price-input {
-  width: 140px;
-}
-
-.public-zone-filters__range-sep {
-  color: #8d7080;
-  font-size: 14px;
-}
-
-.public-zone-filters__label {
-  color: #8d7080;
-  font-size: 13px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-/* Loading */
-.public-zone-loading {
-  display: grid;
-  place-items: center;
-  gap: 12px;
-  padding: 60px;
-  color: var(--ah-text);
-}
-
-.public-zone-loading__spinner {
-  width: 36px;
-  height: 36px;
-  border: 3px solid rgba(216, 168, 183, 0.3);
-  border-top-color: var(--ah-accent);
-  border-radius: 50%;
-  animation: public-zone-spin 0.8s linear infinite;
-}
-
-@keyframes public-zone-spin {
-  to { transform: rotate(360deg); }
-}
-
-.public-zone-loading__more {
-  text-align: center;
-  padding: 20px;
-  color: var(--ah-text);
-}
-
-/* Empty */
-.public-zone-empty {
-  text-align: center;
-  padding: 60px;
-  color: var(--ah-title);
-}
-
-.public-zone-empty__sub {
-  margin-top: 8px;
-  color: var(--ah-text);
-  font-size: 14px;
-}
-
-/* List */
-.public-zone-list {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.public-zone-pagination {
-  padding: 8px 0;
-}
-
-.public-zone-item {
-  display: flex;
-  gap: 20px;
-  align-items: flex-start;
-}
-
-.public-zone-item__thumb {
-  flex-shrink: 0;
-}
-
-.public-zone-item__body {
-  flex: 1;
-  min-width: 0;
-}
-
-.public-zone-item__header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.public-zone-item__name {
-  margin: 0;
-  color: var(--ah-title);
-  font-size: 18px;
-}
-
-.public-zone-item__direction {
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.public-zone-item__direction.is-sell {
-  background: rgba(255, 143, 177, 0.2);
-  color: #c44d73;
-}
-
-.public-zone-item__direction.is-buy {
-  background: rgba(110, 200, 140, 0.2);
-  color: #3d8c5a;
-}
-
-.public-zone-item__price {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--ah-accent-deep);
-}
-
-.public-zone-item__meta {
-  margin-top: 8px;
-  color: var(--ah-text);
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.public-zone-item__dot {
-  color: #c9a0b0;
-}
-
-.public-zone-item__untrusted-badge {
-  background: rgba(207, 93, 117, 0.12);
-  color: #c44d73;
-  padding: 4px 10px;
-  border-radius: 8px;
-  font-size: 13px;
-  border: 0;
-}
-
-.public-zone-item__footer {
-  margin-top: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.public-zone-item__left {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.public-zone-item__time {
-  font-size: 13px;
-  color: #8d7080;
-}
-
-.public-zone-item__untrusted-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.public-zone-item__untrusted-trigger {
-  cursor: pointer;
-  transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease;
-}
-
-.public-zone-item__untrusted-trigger:hover {
-  background: rgba(207, 93, 117, 0.2);
-  transform: translateY(-1px);
-}
-
-.public-zone-item__untrusted-trigger.is-active {
-  background: rgba(207, 93, 117, 0.2);
-  color: #a33860;
-}
-
-.public-zone-item__actions {
-  display: flex;
-  gap: 8px;
-}
-
-.public-zone-load-more {
-  text-align: center;
-  padding: 20px;
-}
-
-/* Form */
 .public-zone-form__row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -890,40 +542,6 @@ onBeforeUnmount(() => {
   color: #4caf7d;
 }
 
-@media (max-width: 600px) {
-  .public-zone-filters__search {
-    width: 100%;
-  }
-
-  .public-zone-filters__search-input {
-    min-width: 0;
-    max-width: none;
-    flex: 1;
-  }
-
-  .public-zone-filters__price {
-    width: 100%;
-  }
-
-  .public-zone-filters__price-input {
-    width: calc(50% - 26px);
-    min-width: 0;
-  }
-
-  .public-zone-item {
-    flex-direction: column;
-  }
-
-  .public-zone-form__row {
-    grid-template-columns: 1fr;
-  }
-
-  .public-zone-form__upload {
-    flex-direction: column;
-  }
-}
-
-/* Floating Action Buttons */
 .fab {
   position: fixed;
   right: 28px;
@@ -969,6 +587,20 @@ onBeforeUnmount(() => {
   background: #fff;
 }
 
+@media (min-width: 769px) {
+  .fab {
+    right: max(28px, calc((100vw - var(--ah-shell-width)) / 2 + 16px));
+  }
+
+  .fab--refresh {
+    bottom: 268px;
+  }
+
+  .fab--top {
+    bottom: 332px;
+  }
+}
+
 .fab-enter-active,
 .fab-leave-active {
   transition: opacity 0.25s, transform 0.25s;
@@ -978,5 +610,46 @@ onBeforeUnmount(() => {
 .fab-leave-to {
   opacity: 0;
   transform: scale(0.6);
+}
+
+@media (max-width: 640px) {
+  .public-zone-form__row {
+    grid-template-columns: 1fr;
+  }
+
+  .public-zone-form__upload {
+    gap: 12px;
+  }
+
+  .public-zone-form__upload-placeholder {
+    width: 96px;
+    height: 96px;
+    border-radius: 16px;
+    font-size: 12px;
+  }
+
+  .public-zone-form__upload-info,
+  .public-zone-form__upload-progress {
+    font-size: 12px;
+  }
+
+  .fab {
+    right: 18px;
+    width: 44px;
+    height: 44px;
+    font-size: 22px;
+  }
+
+  .fab--add {
+    bottom: 94px;
+  }
+
+  .fab--refresh {
+    bottom: 148px;
+  }
+
+  .fab--top {
+    bottom: 202px;
+  }
 }
 </style>

@@ -6,6 +6,7 @@ import SquareImagePreview from '@/components/common/SquareImagePreview.vue'
 import {
   compressImageBeforeUpload,
   formatFileSize,
+  IMAGE_INPUT_ACCEPT,
   type CompressionResult,
 } from '@/utils/image-upload'
 
@@ -97,7 +98,7 @@ const handleUpload = async () => {
         ref="fileInputRef"
         class="upload-demo__native-input"
         type="file"
-        accept="image/jpeg,image/png,image/webp"
+        :accept="IMAGE_INPUT_ACCEPT"
         @change="handleFileChange"
       />
 

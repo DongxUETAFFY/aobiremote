@@ -1,93 +1,170 @@
-# aobidao-web
+# Aobi Helper Web
 
-本项目本地测试时，前后端分开启动。
+一个面向奥比岛玩家的交易记录与展示工具，帮助用户把“买了什么、多少钱买的、卖了没有、赚了还是亏了、要不要公开挂到交易区”这整条链路放到同一个 Web 项目里管理。
 
-## 环境要求
+这个项目适合做什么：
 
-- Node.js `20+`
-- npm `10+`
-- JDK `17+`
-- Maven `3.9+`
+- 管理自己的时装仓库
+- 记录买入、卖出和备注
+- 统计盈亏情况
+- 把自己的物品一键公开到交易区
+- 浏览别人发布的交易信息
+- 用图片辅助展示和筛选交易物品
 
-## 最推荐的本地启动方式
+## 功能概览
 
-这是最适合测试的组合：
+### 1. 账号体系
 
-- 前端走 `npm`
-- 后端走 `maven`
-- 后端使用 `local-lite` 配置
+- 邮箱注册
+- 邮箱验证码注册
+- 登录 / 退出登录
+- 忘记密码
+- 登录后修改密码
+- 保存登录成功过的账号和密码，便于测试和日常使用
 
-`local-lite` 会使用：
+### 2. 我的仓库
 
-- H2 本地文件数据库
-- 内存验证码缓存
-- 本地文件上传目录
+- 新增、编辑、删除仓库物品
+- 记录买入价格、买入日期、渠道、分类、备注、图片
+- 支持将未卖出的物品标记为卖出
+- 支持按名称搜索
+- 支持按分类筛选
+- 支持分页查看
+- 支持批量公开未卖出且未公开的物品
+- 展示总价格、总件数、奥比总价格 / 总件数、魔力总价格 / 总件数
 
-所以本地测试时不需要先准备 MySQL、Redis、MinIO。
+### 3. 盈亏统计
 
-## 启动前端
+- 记录完整买入 / 卖出信息
+- 自动统计总买入、总卖出、盈利、亏损
+- 支持按名称搜索
+- 支持按分类筛选
+- 支持分页查看
+- 支持将记录同步公开到交易区
+- 支持查看奥比时装、魔力时装的独立统计结果
 
-在仓库根目录打开一个终端，执行：
+### 4. 公开交易区
 
-```powershell
+- 发布公开交易信息
+- 展示方向、价格、时间、渠道、分类、备注、图片
+- 不显示发布用户名称
+- 支持按名称搜索
+- 支持自定义价格区间查询
+- 支持按渠道 / 分类筛选
+- 支持分页查看
+- 支持“不可信 × 次数”交互与计数
+- 支持用户再次点击取消自己的“不可信”标记
+
+### 5. 关于页
+
+- 版本信息
+- 作者信息
+- 更新日志
+- 赞赏作者
+- 赞赏码支持点击小图直接查看大图
+
+### 6. 图片体验
+
+- 支持 `JPG / JPEG / PNG / WEBP`
+- 支持 `HEIC / HEIF` 前端自动转码后上传
+- 上传前自动压缩，减少体积
+- 支持缩略图预览与大图查看
+- 已做同图请求去重和预览缓存优化
+- 公开交易区图片优先走浏览器原生缓存
+
+### 7. 多端体验
+
+- 桌面端与移动端页面分别适配
+- 我的仓库、盈亏统计已拆分为共享逻辑 + 分离展示组件
+- 公开交易区也按共享逻辑 + 分离桌面 / 移动展示组织
+- 移动端有底部导航、分页、回到顶部等交互优化
+
+## 技术栈
+
+### 前端
+
+- Vue 3
+- TypeScript
+- Vite
+- Vue Router
+- Pinia
+- Element Plus
+- Axios
+- heic2any
+
+### 后端
+
+- Java 17
+- Spring Boot 3.5
+- MyBatis-Plus
+- Sa-Token
+- Spring Validation
+- Spring Mail
+- Spring Data Redis
+- Spring Boot Actuator
+
+### 存储与基础设施
+
+- MySQL 8
+- Redis
+- 本地文件存储（图片）
+- Nginx
+- Cloudflare
+
+## 项目结构
+
+```text
+backend/   Spring Boot 后端
+frontend/  Vue 3 前端
+deploy/    部署相关示例配置
+sql/       SQL 脚本
+```
+
+## 适用场景
+
+这个项目更偏向“小而完整”的个人工具站，适合：
+
+- 个人或小团队运营
+- 交易记录留档
+- 玩家社区内部使用
+- 图片型物品展示
+- 轻量级 Web 上线部署
+
+## 本地开发
+
+### 前端
+
+```bash
 cd frontend
 npm install
-npm run dev -- --host 127.0.0.1 --port 5173
+npm run dev
 ```
 
-也可以直接运行脚本：
+### 后端
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\dev-frontend.ps1
-```
-
-## 启动后端
-
-再打开一个终端，执行：
-
-```powershell
+```bash
 cd backend
-mvn spring-boot:run "-Dspring-boot.run.profiles=local-lite"
+mvn spring-boot:run
 ```
 
-也可以直接运行脚本：
+也可以使用打包方式：
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\dev-backend-lite.ps1
+```bash
+cd backend
+mvn -DskipTests package
+java -jar target/backend-0.0.1-SNAPSHOT.jar
 ```
 
-说明：
+## 项目特点
 
-- `local-lite` 配置文件在 `backend/src/main/resources/application-local-lite.yml`
-- 后端默认端口是 `8080`
-- 前端默认请求 `http://localhost:8080/api`
+- 功能链路完整：从仓库记录到盈亏统计，再到公开交易区
+- 更贴近真实使用：不是单纯 Demo，而是围绕玩家交易过程设计
+- 图片支持更友好：兼容手机常见 HEIC 图片
+- 移动端可用性优先：适合手机直接使用
+- 部署成本较低：适合单机上线
 
-## 你测试时该访问的地址
+## 说明
 
-前端页面：
+- 公开仓库中仅保留适合公开展示的文档
+- 真实部署细节、服务器信息、域名接入、Cloudflare / Spaceship 配置等文档保留在本地私有文件中，不进入 Git
 
-- [http://127.0.0.1:5173/](http://127.0.0.1:5173/)
-
-后端接口基地址：
-
-- [http://127.0.0.1:8080/api](http://127.0.0.1:8080/api)
-
-后端健康检查：
-
-- [http://127.0.0.1:8080/actuator/health](http://127.0.0.1:8080/actuator/health)
-
-H2 控制台：
-
-- [http://127.0.0.1:8080/h2-console](http://127.0.0.1:8080/h2-console)
-
-## 当前这台机器的注意事项
-
-如果直接运行 `backend/mvnw.cmd`，可能会因为 Windows 用户目录包含特殊字符而启动失败。
-
-仓库里的 `scripts/dev-backend-lite.ps1` 和 `scripts/dev-backend.ps1` 已经做了兼容处理：
-
-- 优先尝试 `mvnw.cmd`
-- 如果失败，自动回退到全局 `mvn`
-- 同时把 `TEMP/TMP` 指向仓库下的 `.tmp`
-
-所以在这台机器上，优先用上面的脚本或直接用全局 `mvn`。

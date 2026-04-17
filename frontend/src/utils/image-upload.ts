@@ -1,8 +1,12 @@
-const SUPPORTED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+const DIRECT_UPLOAD_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+const HEIC_TYPES = new Set(['image/heic', 'image/heif', 'image/heic-sequence', 'image/heif-sequence'])
+const SUPPORTED_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'])
 const TARGET_SIZE = 400 * 1024
 const ACCEPTABLE_MAX_SIZE = 500 * 1024
 const DIMENSION_STEPS = [1600, 1280, 1024, 800]
 const QUALITY_STEPS = [0.9, 0.82, 0.74, 0.66, 0.58]
+
+export const IMAGE_INPUT_ACCEPT = 'image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif'
 
 export interface CompressionResult {
   file: File
@@ -12,20 +16,22 @@ export interface CompressionResult {
 }
 
 export const compressImageBeforeUpload = async (sourceFile: File): Promise<CompressionResult> => {
-  if (!SUPPORTED_TYPES.has(sourceFile.type)) {
-    throw new Error('仅支持 JPG、PNG、WEBP 图片')
+  if (!isSupportedInputFile(sourceFile)) {
+    throw new Error('仅支持 JPG、PNG、WEBP、HEIC、HEIF 图片')
   }
 
-  if (sourceFile.size <= TARGET_SIZE) {
+  const normalizedFile = await normalizeInputImageFile(sourceFile)
+
+  if (normalizedFile.size <= TARGET_SIZE) {
     return {
-      file: sourceFile,
+      file: normalizedFile,
       originalSize: sourceFile.size,
-      compressedSize: sourceFile.size,
-      compressed: false,
+      compressedSize: normalizedFile.size,
+      compressed: normalizedFile !== sourceFile,
     }
   }
 
-  const image = await loadImage(sourceFile)
+  const image = await loadImage(normalizedFile)
   let bestCandidate: File | null = null
 
   for (const maxDimension of DIMENSION_STEPS) {
@@ -44,7 +50,7 @@ export const compressImageBeforeUpload = async (sourceFile: File): Promise<Compr
 
     for (const quality of QUALITY_STEPS) {
       const blob = await canvasToBlob(canvas, 'image/webp', quality)
-      const candidate = new File([blob], replaceExtension(sourceFile.name, 'webp'), {
+      const candidate = new File([blob], replaceExtension(normalizedFile.name, 'webp'), {
         type: 'image/webp',
         lastModified: Date.now(),
       })
@@ -84,6 +90,60 @@ export const formatFileSize = (bytes: number) => {
     return `${(bytes / 1024).toFixed(1)} KB`
   }
   return `${(bytes / 1024 / 1024).toFixed(2)} MB`
+}
+
+const normalizeInputImageFile = async (sourceFile: File) => {
+  if (!isHeicLikeFile(sourceFile)) {
+    return sourceFile
+  }
+
+  const { default: heic2any } = await import('heic2any')
+  const converted = await heic2any({
+    blob: sourceFile,
+    toType: 'image/jpeg',
+    quality: 0.92,
+  })
+  const convertedBlob = Array.isArray(converted) ? converted[0] : converted
+
+  if (!(convertedBlob instanceof Blob)) {
+    throw new Error('HEIC 图片转换失败，请换一张图片重试')
+  }
+
+  return new File([convertedBlob], replaceExtension(sourceFile.name, 'jpg'), {
+    type: 'image/jpeg',
+    lastModified: Date.now(),
+  })
+}
+
+const isSupportedInputFile = (file: File) => {
+  const normalizedType = normalizeMimeType(file.type)
+  if (DIRECT_UPLOAD_TYPES.has(normalizedType) || HEIC_TYPES.has(normalizedType)) {
+    return true
+  }
+
+  const extension = extractExtension(file.name)
+  return SUPPORTED_EXTENSIONS.has(extension)
+}
+
+const isHeicLikeFile = (file: File) => {
+  const normalizedType = normalizeMimeType(file.type)
+  if (HEIC_TYPES.has(normalizedType)) {
+    return true
+  }
+
+  const extension = extractExtension(file.name)
+  return extension === 'heic' || extension === 'heif'
+}
+
+const normalizeMimeType = (type: string) => type.trim().toLowerCase()
+
+const extractExtension = (filename: string) => {
+  const trimmed = filename.trim()
+  const dotIndex = trimmed.lastIndexOf('.')
+  if (dotIndex < 0) {
+    return ''
+  }
+  return trimmed.slice(dotIndex + 1).toLowerCase()
 }
 
 const loadImage = (file: File) =>

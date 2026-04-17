@@ -1,58 +1,91 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from 'vue'
-import { fetchImagePreviewBlob } from '@/api/file'
+import { getImagePreviewObjectUrl, peekImagePreviewObjectUrl } from '@/utils/image-preview-cache'
 
 const props = defineProps<{
   fileId?: string | null
   emptyText?: string
+  previewUrl?: string | null
 }>()
 
 const loading = ref(false)
 const errorText = ref('')
 const objectUrl = ref('')
-
-const cleanupObjectUrl = () => {
-  if (objectUrl.value) {
-    URL.revokeObjectURL(objectUrl.value)
-    objectUrl.value = ''
-  }
-}
+const activeFileId = ref('')
 
 const loadPreview = async (fileId?: string | null) => {
-  cleanupObjectUrl()
-  errorText.value = ''
+  if (props.previewUrl?.trim()) {
+    loading.value = false
+    errorText.value = ''
+    objectUrl.value = ''
+    return
+  }
 
-  if (!fileId) {
+  const normalizedFileId = fileId?.trim() || ''
+  activeFileId.value = normalizedFileId
+  errorText.value = ''
+  objectUrl.value = ''
+
+  if (!normalizedFileId) {
+    loading.value = false
+    return
+  }
+
+  const cachedObjectUrl = peekImagePreviewObjectUrl(normalizedFileId)
+  if (cachedObjectUrl) {
+    objectUrl.value = cachedObjectUrl
+    loading.value = false
     return
   }
 
   loading.value = true
   try {
-    const blob = await fetchImagePreviewBlob(fileId)
-    objectUrl.value = URL.createObjectURL(blob)
+    const nextObjectUrl = await getImagePreviewObjectUrl(normalizedFileId)
+    if (activeFileId.value === normalizedFileId) {
+      objectUrl.value = nextObjectUrl
+    }
   } catch (error: any) {
-    errorText.value = error?.response?.data?.message || '图片加载失败'
+    if (activeFileId.value === normalizedFileId) {
+      errorText.value = error?.response?.data?.message || '图片加载失败'
+    }
   } finally {
-    loading.value = false
+    if (activeFileId.value === normalizedFileId) {
+      loading.value = false
+    }
   }
 }
 
 watch(
-  () => props.fileId,
-  async (nextFileId) => {
+  () => [props.fileId, props.previewUrl],
+  async ([nextFileId]) => {
     await loadPreview(nextFileId)
   },
   { immediate: true },
 )
 
 onBeforeUnmount(() => {
-  cleanupObjectUrl()
+  activeFileId.value = ''
 })
 </script>
 
 <template>
   <div class="square-preview">
-    <div v-if="loading" class="square-preview__placeholder">加载中...</div>
+    <el-image
+      v-if="previewUrl"
+      class="square-preview__image"
+      :src="previewUrl"
+      :preview-src-list="[previewUrl]"
+      preview-teleported
+      fit="cover"
+    >
+      <template #placeholder>
+        <div class="square-preview__placeholder">加载中...</div>
+      </template>
+      <template #error>
+        <div class="square-preview__placeholder is-error">图片加载失败</div>
+      </template>
+    </el-image>
+    <div v-else-if="loading" class="square-preview__placeholder">加载中...</div>
     <div v-else-if="errorText" class="square-preview__placeholder is-error">{{ errorText }}</div>
     <div v-else-if="!objectUrl" class="square-preview__placeholder">{{ emptyText || '暂无图片' }}</div>
     <el-image

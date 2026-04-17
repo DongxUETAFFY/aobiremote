@@ -8,6 +8,7 @@ import { uploadImage } from '@/api/file'
 import {
   compressImageBeforeUpload,
   formatFileSize,
+  IMAGE_INPUT_ACCEPT,
   type CompressionResult,
 } from '@/utils/image-upload'
 import {
@@ -433,7 +434,7 @@ onBeforeUnmount(() => {
           <input
             ref="fileInputRef"
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            :accept="IMAGE_INPUT_ACCEPT"
             style="display:none"
             @change="handleFileChange"
           />

@@ -16,6 +16,7 @@ frontend/.env.*.local
 backend/target/
 backend/.mvn/wrapper/maven-wrapper.jar
 backend/.local-data/
+backend/config/mail-local.yml
 
 # Deploy / env
 deploy/env/*.env
@@ -28,3 +29,13 @@ deploy/env/*.local
 preview-*.bin
 temp-test.png
 .tmp/
+
+# Local operations notes with server connection details
+WINDOWS_DB_ADMIN_TUNNEL.md
+
+# Markdown docs
+*.md
+!/README.md
+!guide.md
+!SDD.md
+!AOBIDAO_WEB_SDD.md
