@@ -3,6 +3,7 @@ package io.github.dongxuetaffy.aobihelper.auth.service.impl;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.dev33.satoken.stp.SaTokenInfo;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import io.github.dongxuetaffy.aobihelper.admin.service.AdminAccessService;
 import io.github.dongxuetaffy.aobihelper.auth.cache.AuthCacheService;
 import io.github.dongxuetaffy.aobihelper.auth.dto.ChangePasswordRequest;
 import io.github.dongxuetaffy.aobihelper.auth.dto.LoginRequest;
@@ -48,6 +49,7 @@ public class AuthServiceImpl implements AuthService {
     private final JavaMailSender javaMailSender;
     private final BCryptPasswordEncoder passwordEncoder;
     private final AuthProperties authProperties;
+    private final AdminAccessService adminAccessService;
 
     @Override
     public void sendRegisterCode(String email, String requestIp) {
@@ -356,6 +358,7 @@ public class AuthServiceImpl implements AuthService {
         currentUserVO.setEmail(userAccount.getEmail());
         currentUserVO.setNickname(userAccount.getNickname());
         currentUserVO.setAvatarUrl(userAccount.getAvatarUrl());
+        currentUserVO.setAdmin(adminAccessService.isAdmin(userAccount));
         return currentUserVO;
     }
 

@@ -19,6 +19,8 @@ sa-token:
   token-prefix: Bearer
 
 app:
+  admin:
+    emails: ${AOBI_ADMIN_EMAILS:admin@aobi.local}
   auth:
     mail-enabled: true
     verification-code-expire-seconds: 300

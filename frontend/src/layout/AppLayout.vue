@@ -9,12 +9,13 @@ const router = useRouter()
 const appStore = useAppStore()
 const authStore = useAuthStore()
 
-const navItems = [
+const navItems = computed(() => [
   { label: '我的仓库', path: '/warehouse' },
   { label: '盈亏统计', path: '/profit' },
   { label: '公开交易区', path: '/public-zone' },
   { label: '关于', path: '/about' },
-]
+  ...(authStore.user?.admin ? [{ label: '管理员端', path: '/admin' }] : []),
+])
 
 const currentTitle = computed(() => String(route.meta.title || appStore.appName))
 const currentUserLabel = computed(() => authStore.user?.nickname || authStore.user?.email || '游客')
