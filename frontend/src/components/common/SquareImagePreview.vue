@@ -101,9 +101,9 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .square-preview {
-  width: 168px;
-  height: 168px;
-  border-radius: 24px;
+  width: var(--square-preview-size, 168px);
+  height: var(--square-preview-size, 168px);
+  border-radius: var(--square-preview-radius, 24px);
   overflow: hidden;
   border: 1px solid rgba(216, 168, 183, 0.28);
   background: rgba(255, 255, 255, 0.82);

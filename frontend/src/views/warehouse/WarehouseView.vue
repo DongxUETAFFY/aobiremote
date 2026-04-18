@@ -710,6 +710,11 @@ onBeforeUnmount(() => {
     gap: 12px;
   }
 
+  .warehouse-form__upload-preview {
+    --square-preview-size: 96px;
+    --square-preview-radius: 16px;
+  }
+
   .warehouse-form__upload-placeholder {
     width: 96px;
     height: 96px;

@@ -589,6 +589,8 @@ const emit = defineEmits<{
 
   .profit-mobile-item__thumb {
     justify-content: flex-start;
+    --square-preview-size: 56px;
+    --square-preview-radius: 14px;
   }
 
   .profit-mobile-item__body {

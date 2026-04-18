@@ -598,6 +598,11 @@ onBeforeUnmount(() => {
     gap: 12px;
   }
 
+  .profit-form__upload-preview {
+    --square-preview-size: 96px;
+    --square-preview-radius: 16px;
+  }
+
   .profit-form__upload-placeholder {
     width: 96px;
     height: 96px;

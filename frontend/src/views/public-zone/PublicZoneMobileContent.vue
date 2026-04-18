@@ -626,6 +626,8 @@ const emit = defineEmits<{
     grid-column: 1;
     grid-row: 1 / span 3;
     justify-content: flex-start;
+    --square-preview-size: 56px;
+    --square-preview-radius: 14px;
   }
 
   .public-zone-mobile-item__title-row {
