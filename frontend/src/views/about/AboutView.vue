@@ -303,22 +303,54 @@ const openItem = async (key: AboutItemKey) => {
 }
 
 @media (max-width: 768px) {
+  .about-page {
+    gap: 5px;
+    padding-bottom: 12px;
+  }
+
+  .about-hero {
+    display: none;
+  }
+
   .about-hero__title {
-    font-size: 26px;
+    font-size: 18px;
+  }
+
+  .about-hero__eyebrow {
+    margin-bottom: 4px;
+    font-size: 11px;
+  }
+
+  .about-hero__subtitle {
+    margin-top: 5px;
+    font-size: 11px;
+    line-height: 1.55;
+  }
+
+  .about-list {
+    gap: 7px;
   }
 
   .about-item {
-    padding: 18px;
-    align-items: flex-start;
+    padding: 9px;
+    border-radius: 12px;
+    align-items: center;
   }
 
   .about-item__title {
-    font-size: 17px;
+    font-size: 13px;
+  }
+
+  .about-item__desc {
+    margin-top: 3px;
+    font-size: 11px;
+    line-height: 1.45;
   }
 
   .about-item__action {
-    min-width: 72px;
-    padding: 9px 14px;
+    min-width: 48px;
+    padding: 5px 8px;
+    font-size: 11px;
   }
 }
 </style>

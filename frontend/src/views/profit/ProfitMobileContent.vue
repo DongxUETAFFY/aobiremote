@@ -64,9 +64,6 @@ const emit = defineEmits<{
         <el-radio-button label="profit">盈利</el-radio-button>
         <el-radio-button label="loss">亏损</el-radio-button>
       </el-radio-group>
-      <el-button class="profit-mobile-hero__button" type="primary" @click="emit('open-add')">
-        + 新增记录
-      </el-button>
     </section>
 
     <section class="profit-mobile-category ah-glass-card ah-page-section">
@@ -102,7 +99,7 @@ const emit = defineEmits<{
         @keyup.enter="emit('keyword-search')"
         @clear="emit('keyword-clear')"
       />
-      <el-button @click="emit('keyword-search')">搜索</el-button>
+      <el-button class="profit-mobile-search__button" @click="emit('keyword-search')">搜索</el-button>
     </section>
 
     <div v-if="loading" class="profit-loading">
@@ -121,6 +118,7 @@ const emit = defineEmits<{
           :current="currentPage"
           :total="totalCount"
           :page-size="pageSize"
+          hide-status
           @change="emit('page-change', $event)"
         />
       </div>
@@ -131,39 +129,26 @@ const emit = defineEmits<{
         class="profit-mobile-item ah-glass-card ah-page-section"
       >
         <div class="profit-mobile-item__top">
-          <div class="profit-mobile-item__title-wrap">
-            <h3 class="profit-mobile-item__name">{{ item.itemName }}</h3>
-            <span class="profit-mobile-item__profit" :class="item.profitAmount >= 0 ? 'is-profit' : 'is-loss'">
-              {{ item.profitAmount >= 0 ? '+' : '' }}¥{{ item.profitAmount }}
-            </span>
-          </div>
           <div class="profit-mobile-item__thumb">
             <SquareImagePreview :file-id="item.imageFileId" empty-text="无图" />
           </div>
-        </div>
+          <div class="profit-mobile-item__body">
+            <div class="profit-mobile-item__title-wrap">
+              <h3 class="profit-mobile-item__name">{{ item.itemName }}</h3>
+              <span class="profit-mobile-item__profit" :class="item.profitAmount >= 0 ? 'is-profit' : 'is-loss'">
+                {{ item.profitAmount >= 0 ? '+' : '' }}¥{{ item.profitAmount }}
+              </span>
+            </div>
 
-        <div class="profit-mobile-item__trade">
-          <div class="profit-mobile-item__trade-block">
-            <span class="profit-mobile-item__trade-label">买入</span>
-            <strong>¥{{ item.buyPrice }}</strong>
-            <span>{{ formatDate(item.buyTime) }}</span>
-          </div>
-          <div class="profit-mobile-item__trade-arrow">→</div>
-          <div class="profit-mobile-item__trade-block">
-            <span class="profit-mobile-item__trade-label">卖出</span>
-            <strong>¥{{ item.sellPrice }}</strong>
-            <span>{{ formatDate(item.sellTime) }}</span>
-          </div>
-        </div>
+            <div class="profit-mobile-item__trade">
+              <p class="profit-mobile-item__trade-line">买入: ¥{{ item.buyPrice }} / {{ formatDate(item.buyTime) }}</p>
+              <p class="profit-mobile-item__trade-line">卖出: ¥{{ item.sellPrice }} / {{ formatDate(item.sellTime) }}</p>
+            </div>
 
-        <div class="profit-mobile-item__meta-grid">
-          <div class="profit-mobile-item__meta">
-            <span class="profit-mobile-item__meta-label">渠道</span>
-            <strong>{{ channelLabel(item.channel) }}</strong>
-          </div>
-          <div class="profit-mobile-item__meta">
-            <span class="profit-mobile-item__meta-label">分类</span>
-            <strong>{{ categoryLabel(item.category) }}</strong>
+            <div class="profit-mobile-item__meta-grid">
+              <p class="profit-mobile-item__meta">渠道: {{ channelLabel(item.channel) }}</p>
+              <p class="profit-mobile-item__meta">分类: {{ categoryLabel(item.category) }}</p>
+            </div>
           </div>
         </div>
 
@@ -187,6 +172,7 @@ const emit = defineEmits<{
           :current="currentPage"
           :total="totalCount"
           :page-size="pageSize"
+          hide-status
           @change="emit('page-change', $event)"
         />
       </div>
@@ -251,11 +237,6 @@ const emit = defineEmits<{
 }
 
 .profit-mobile-hero__scope {
-  margin-top: 16px;
-}
-
-.profit-mobile-hero__button {
-  width: 100%;
   margin-top: 16px;
 }
 
@@ -365,6 +346,12 @@ const emit = defineEmits<{
   gap: 12px;
 }
 
+.profit-mobile-item__body {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
 .profit-mobile-item__title-wrap {
   display: flex;
   align-items: center;
@@ -377,6 +364,9 @@ const emit = defineEmits<{
   color: var(--ah-title);
   font-size: 18px;
   line-height: 1.3;
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .profit-mobile-item__profit {
@@ -403,59 +393,29 @@ const emit = defineEmits<{
 }
 
 .profit-mobile-item__trade {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  gap: 10px;
-  align-items: center;
-}
-
-.profit-mobile-item__trade-block {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 4px;
-  padding: 12px;
-  border-radius: 16px;
-  background: rgba(255, 250, 247, 0.72);
 }
 
-.profit-mobile-item__trade-label,
-.profit-mobile-item__trade-block span {
-  color: #8d7080;
-  font-size: 12px;
-}
-
-.profit-mobile-item__trade-block strong {
-  color: var(--ah-title);
-  font-size: 14px;
-}
-
-.profit-mobile-item__trade-arrow {
-  color: var(--ah-accent);
-  font-weight: 700;
+.profit-mobile-item__trade-line {
+  margin: 0;
+  color: var(--ah-text);
+  font-size: 13px;
+  line-height: 1.35;
 }
 
 .profit-mobile-item__meta-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .profit-mobile-item__meta {
-  display: grid;
-  gap: 4px;
-  padding: 12px;
-  border-radius: 16px;
-  background: rgba(255, 250, 247, 0.72);
-}
-
-.profit-mobile-item__meta-label {
-  color: #b27f93;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.profit-mobile-item__meta strong {
-  color: var(--ah-title);
-  font-size: 14px;
+  margin: 0;
+  color: var(--ah-text);
+  font-size: 13px;
+  line-height: 1.35;
 }
 
 .profit-mobile-item__public-badge {
@@ -483,5 +443,240 @@ const emit = defineEmits<{
 
 .profit-mobile-item__actions :deep(.el-button) {
   margin: 0;
+}
+
+@media (max-width: 768px) {
+  .profit-mobile-hero,
+  .profit-mobile-category,
+  .profit-mobile-search,
+  .profit-pagination,
+  .profit-mobile-item {
+    border-color: rgba(146, 174, 118, 0.25);
+    background:
+      linear-gradient(135deg, rgba(255, 254, 244, 0.95) 0%, rgba(250, 244, 226, 0.9) 100%);
+    box-shadow: 0 3px 10px rgba(116, 142, 94, 0.1);
+  }
+
+  .profit-content {
+    gap: 5px;
+  }
+
+  .profit-mobile-hero__label,
+  .profit-mobile-category__label,
+  .profit-mobile-search__label {
+    font-size: 11px;
+  }
+
+  .profit-mobile-hero__count {
+    margin-top: 2px;
+    font-size: 16px;
+  }
+
+  .profit-mobile-hero__stats {
+    gap: 4px;
+    margin-top: 5px;
+  }
+
+  .profit-mobile-hero__stat {
+    padding: 5px 7px;
+    border-radius: 9px;
+    border: 1px solid rgba(146, 174, 118, 0.16);
+    background: rgba(255, 253, 245, 0.72);
+  }
+
+  .profit-mobile-hero__stat span,
+  .profit-mobile-category__count,
+  .profit-mobile-item__remark {
+    font-size: 11px;
+  }
+
+  .profit-mobile-hero__stat strong {
+    font-size: 11px;
+  }
+
+  .profit-mobile-hero__scope {
+    margin-top: 5px;
+  }
+
+  .profit-mobile-hero__scope :deep(.el-radio-button__inner) {
+    min-height: 24px;
+    padding: 4px 9px;
+    border-color: rgba(146, 174, 118, 0.28);
+    background: rgba(255, 255, 250, 0.78);
+    color: #6d7657;
+    font-size: 10px;
+    box-shadow: none;
+  }
+
+  .profit-mobile-hero__scope :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+    border-color: #6fa45c;
+    background: linear-gradient(135deg, #9fc87f, #6fa45c);
+    color: #fff;
+    box-shadow: 0 4px 10px rgba(111, 164, 92, 0.18);
+  }
+
+  .profit-mobile-category {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .profit-mobile-category__card {
+    gap: 1px;
+    padding: 5px 7px;
+    border-radius: 9px;
+    border-color: rgba(146, 174, 118, 0.2);
+    background: rgba(255, 253, 245, 0.82);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  }
+
+  .profit-mobile-category__card.is-active {
+    border-color: rgba(100, 151, 86, 0.42);
+    background: linear-gradient(135deg, rgba(232, 244, 215, 0.94), rgba(255, 247, 224, 0.92));
+    box-shadow: 0 4px 12px rgba(116, 142, 94, 0.14);
+  }
+
+  .profit-mobile-category__price {
+    font-size: 13px;
+  }
+
+  .profit-mobile-search {
+    gap: 4px;
+  }
+
+  .profit-mobile-search {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .profit-mobile-search :deep(.el-input__wrapper) {
+    border: 1px solid rgba(146, 174, 118, 0.25);
+    background: rgba(255, 255, 250, 0.94);
+    box-shadow: inset 0 1px 2px rgba(116, 142, 94, 0.06);
+  }
+
+  .profit-mobile-search__label {
+    display: none;
+  }
+
+  .profit-mobile-search__button {
+    min-height: 26px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    border: 0;
+    background: linear-gradient(135deg, #9fc87f, #6fa45c);
+    color: #fff;
+    font-size: 10px;
+    box-shadow: 0 4px 10px rgba(111, 164, 92, 0.22);
+  }
+
+  .profit-list {
+    gap: 5px;
+  }
+
+  .profit-pagination {
+    padding: 0;
+  }
+
+  .profit-mobile-item {
+    gap: 4px;
+  }
+
+  .profit-mobile-item__top {
+    grid-template-columns: 62px minmax(0, 1fr);
+    align-items: start;
+    gap: 7px;
+  }
+
+  .profit-mobile-item__thumb {
+    justify-content: flex-start;
+  }
+
+  .profit-mobile-item__body {
+    gap: 2px;
+  }
+
+  .profit-mobile-item__title-wrap {
+    align-items: flex-start;
+    flex-direction: row;
+    gap: 5px;
+  }
+
+  .profit-mobile-item__name {
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  .profit-mobile-item__profit {
+    background: linear-gradient(135deg, rgba(223, 238, 205, 0.95), rgba(244, 232, 192, 0.92));
+    padding: 2px 6px;
+    font-size: 9px;
+  }
+
+  .profit-mobile-item__profit.is-loss {
+    background: rgba(251, 232, 228, 0.86);
+  }
+
+  .profit-mobile-item__trade {
+    gap: 2px;
+  }
+
+  .profit-mobile-item__meta-grid {
+    gap: 2px;
+  }
+
+  .profit-mobile-item__trade-line,
+  .profit-mobile-item__meta {
+    color: #4f4135;
+    font-size: 10px;
+    line-height: 1.25;
+  }
+
+  .profit-mobile-item__public-badge {
+    border: 1px solid rgba(111, 164, 92, 0.24);
+    background: rgba(232, 244, 215, 0.8);
+    color: #4f8745;
+    padding: 2px 6px;
+    font-size: 9px;
+  }
+
+  .profit-mobile-item__actions {
+    gap: 5px;
+    grid-template-columns: repeat(3, max-content);
+    justify-content: start;
+  }
+
+  .profit-mobile-item__actions :deep(.el-button) {
+    min-height: 22px;
+    padding: 2px 7px;
+    border-radius: 9px;
+    border: 1px solid rgba(146, 174, 118, 0.34);
+    background: rgba(255, 255, 250, 0.78);
+    color: #526a45;
+    font-size: 10px;
+    box-shadow: none;
+  }
+
+  .profit-mobile-item__actions :deep(.el-button--primary) {
+    border-color: rgba(111, 164, 92, 0.32);
+    background: rgba(232, 244, 215, 0.82);
+    color: #4f8745;
+  }
+
+  .profit-mobile-item__actions :deep(.el-button--warning) {
+    border-color: rgba(211, 164, 91, 0.32);
+    background: rgba(252, 237, 205, 0.84);
+    color: #9a6a2d;
+  }
+
+  .profit-mobile-item__actions :deep(.el-button--danger) {
+    border-color: rgba(199, 105, 119, 0.28);
+    background: rgba(251, 232, 228, 0.82);
+    color: #b95662;
+  }
+
+  .profit-mobile-item__remark {
+    font-size: 10px;
+    line-height: 1.35;
+  }
 }
 </style>

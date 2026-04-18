@@ -68,11 +68,74 @@ a {
 }
 
 @media (max-width: 768px) {
+  :root {
+    --ah-card-radius: 10px;
+    --ah-shadow: 0 3px 9px rgba(116, 142, 94, 0.1);
+  }
+
   .ah-page-shell {
-    width: calc(100% - 24px);
+    width: calc(100% - 8px);
   }
 
   .ah-page-section {
-    padding: 20px;
+    padding: 5px;
+  }
+
+  body {
+    font-size: 11px;
+    background:
+      radial-gradient(circle at top left, rgba(222, 239, 206, 0.46), transparent 30%),
+      linear-gradient(180deg, #f7fbef 0%, #fbf7e8 100%);
+  }
+
+  .ah-glass-card {
+    background: rgba(255, 253, 241, 0.84);
+    border-color: rgba(154, 180, 127, 0.28);
+    backdrop-filter: blur(10px);
+  }
+
+  .el-button {
+    min-height: 24px;
+    padding: 4px 9px;
+    border-radius: 10px;
+    font-size: 10px;
+  }
+
+  .el-input__wrapper,
+  .el-select__wrapper {
+    min-height: 28px;
+    border-radius: 999px;
+  }
+
+  .el-input__inner {
+    font-size: 11px;
+  }
+
+  .el-input-number {
+    width: 100%;
+  }
+
+  .el-dialog.is-fullscreen {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    border-radius: 0;
+  }
+
+  .el-dialog.is-fullscreen .el-dialog__header {
+    flex-shrink: 0;
+    padding: 14px 16px 8px;
+  }
+
+  .el-dialog.is-fullscreen .el-dialog__body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 16px;
+  }
+
+  .el-dialog.is-fullscreen .el-dialog__footer {
+    flex-shrink: 0;
+    padding: 10px 16px max(12px, env(safe-area-inset-bottom));
+    border-top: 1px solid rgba(205, 145, 168, 0.12);
   }
 }

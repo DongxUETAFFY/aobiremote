@@ -9,12 +9,13 @@ const router = useRouter()
 const appStore = useAppStore()
 const authStore = useAuthStore()
 
-const navItems = [
+const navItems = computed(() => [
   { label: '我的仓库', path: '/warehouse' },
   { label: '盈亏统计', path: '/profit' },
   { label: '公开交易区', path: '/public-zone' },
   { label: '关于', path: '/about' },
-]
+  ...(authStore.user?.admin ? [{ label: '管理员端', path: '/admin' }] : []),
+])
 
 const currentTitle = computed(() => String(route.meta.title || appStore.appName))
 const currentUserLabel = computed(() => authStore.user?.nickname || authStore.user?.email || '游客')
@@ -253,6 +254,96 @@ const handleLogout = async () => {
 
   .layout-nav__card {
     justify-content: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  .layout-shell {
+    padding: 4px 0 82px;
+  }
+
+  .layout-hero__card {
+    gap: 3px;
+    padding: 7px 10px;
+    border-radius: 12px;
+  }
+
+  .layout-hero__actions {
+    margin-bottom: 0;
+  }
+
+  .layout-hero__account-chip {
+    min-height: 24px;
+    padding: 2px 5px 2px 7px;
+  }
+
+  .layout-hero__user {
+    max-width: 88px;
+    font-size: 11px;
+  }
+
+  .layout-hero__action-link {
+    padding: 4px 5px;
+    font-size: 10px;
+  }
+
+  .layout-hero__eyebrow {
+    margin-bottom: 2px;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+  }
+
+  .layout-hero h1 {
+    font-size: 16px;
+    line-height: 1.12;
+  }
+
+  .layout-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 200;
+    width: 100%;
+    margin: 0;
+    padding: 8px 8px max(8px, env(safe-area-inset-bottom));
+    background: rgba(255, 250, 247, 0.82);
+    backdrop-filter: blur(18px);
+    border-top: 1px solid rgba(205, 145, 168, 0.18);
+  }
+
+  .layout-nav__card {
+    width: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .layout-nav__links {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(58px, 1fr));
+    gap: 6px;
+  }
+
+  .layout-nav__item {
+    width: 100%;
+    min-height: 38px;
+    padding: 8px 3px;
+    border-radius: 13px;
+    font-size: 11px;
+    line-height: 1.15;
+    background: rgba(255, 255, 255, 0.62);
+  }
+
+  .layout-nav__item.is-active {
+    box-shadow: 0 8px 18px rgba(240, 111, 154, 0.2);
+  }
+
+  .layout-main {
+    margin-top: 6px;
   }
 }
 </style>

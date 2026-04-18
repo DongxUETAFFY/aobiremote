@@ -37,6 +37,12 @@ const router = createRouter({
           component: () => import('@/views/about/AboutView.vue'),
           meta: { title: '关于' },
         },
+        {
+          path: 'admin',
+          name: 'admin',
+          component: () => import('@/views/admin/AdminView.vue'),
+          meta: { title: '管理员端', requiresAuth: true, requiresAdmin: true },
+        },
       ],
     },
     {
@@ -86,6 +92,10 @@ router.beforeEach(async (to) => {
         redirect: to.fullPath,
       },
     }
+  }
+
+  if (to.meta.requiresAdmin && !authStore.user?.admin) {
+    return '/warehouse'
   }
 
   if (to.meta.guestOnly && authStore.isAuthenticated) {

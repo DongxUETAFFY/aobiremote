@@ -3,6 +3,7 @@ package io.github.dongxuetaffy.aobihelper.auth.service.impl;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.dev33.satoken.stp.SaTokenInfo;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import io.github.dongxuetaffy.aobihelper.admin.service.AdminAccessService;
 import io.github.dongxuetaffy.aobihelper.auth.cache.AuthCacheService;
 import io.github.dongxuetaffy.aobihelper.auth.dto.ChangePasswordRequest;
 import io.github.dongxuetaffy.aobihelper.auth.dto.LoginRequest;
@@ -29,6 +30,7 @@ import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.mail.MailProperties;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -48,6 +50,8 @@ public class AuthServiceImpl implements AuthService {
     private final JavaMailSender javaMailSender;
     private final BCryptPasswordEncoder passwordEncoder;
     private final AuthProperties authProperties;
+    private final MailProperties mailProperties;
+    private final AdminAccessService adminAccessService;
 
     @Override
     public void sendRegisterCode(String email, String requestIp) {
@@ -72,8 +76,17 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public void sendResetPasswordCode(String email, String requestIp) {
         String normalizedEmail = normalizeEmail(email);
-        ensureEmailRegistered(normalizedEmail);
         validateResetPasswordCodeRateLimit(normalizedEmail);
+        authCacheService.markResetPasswordInterval(
+            normalizedEmail,
+            Duration.ofSeconds(authProperties.getVerificationCodeSendIntervalSeconds())
+        );
+        authCacheService.incrementResetPasswordHourlyCount(normalizedEmail, Duration.ofHours(1));
+
+        if (getUserByEmail(normalizedEmail) == null) {
+            log.info("Reset password code requested for unregistered email. requestIp={}", requestIp);
+            return;
+        }
 
         String code = generateVerificationCode();
         authCacheService.storeResetPasswordCode(
@@ -81,11 +94,6 @@ public class AuthServiceImpl implements AuthService {
             code,
             Duration.ofSeconds(authProperties.getVerificationCodeExpireSeconds())
         );
-        authCacheService.markResetPasswordInterval(
-            normalizedEmail,
-            Duration.ofSeconds(authProperties.getVerificationCodeSendIntervalSeconds())
-        );
-        authCacheService.incrementResetPasswordHourlyCount(normalizedEmail, Duration.ofHours(1));
         dispatchResetPasswordCode(normalizedEmail, code, requestIp);
     }
 
@@ -195,7 +203,7 @@ public class AuthServiceImpl implements AuthService {
         String normalizedEmail = normalizeEmail(request.getEmail());
         UserAccount userAccount = getUserByEmail(normalizedEmail);
         if (userAccount == null) {
-            throw new BusinessException(BusinessCode.RECORD_NOT_FOUND, "User not found");
+            throw new BusinessException(BusinessCode.VERIFICATION_CODE_INVALID, "Verification code is invalid or expired");
         }
 
         String cachedCode = authCacheService.getResetPasswordCode(normalizedEmail);
@@ -273,7 +281,7 @@ public class AuthServiceImpl implements AuthService {
             helper.setTo(email);
             helper.setSubject("Aobi Helper Register Code");
             helper.setText(buildRegisterCodeMailContent(code), false);
-            helper.setFrom(new InternetAddress("no-reply@example.com"));
+            helper.setFrom(new InternetAddress(mailProperties.getUsername()));
             javaMailSender.send(message);
         } catch (Exception exception) {
             log.error("Failed to send register code email to {}", email, exception);
@@ -295,7 +303,7 @@ public class AuthServiceImpl implements AuthService {
             helper.setTo(email);
             helper.setSubject("Aobi Helper Reset Password Code");
             helper.setText(buildResetPasswordCodeMailContent(code), false);
-            helper.setFrom(new InternetAddress("no-reply@example.com"));
+            helper.setFrom(new InternetAddress(mailProperties.getUsername()));
             javaMailSender.send(message);
         } catch (Exception exception) {
             log.error("Failed to send reset password code email to {}", email, exception);
@@ -318,12 +326,6 @@ public class AuthServiceImpl implements AuthService {
     private void ensureEmailNotRegistered(String normalizedEmail) {
         if (getUserByEmail(normalizedEmail) != null) {
             throw new BusinessException(BusinessCode.EMAIL_ALREADY_REGISTERED, "Email has already been registered");
-        }
-    }
-
-    private void ensureEmailRegistered(String normalizedEmail) {
-        if (getUserByEmail(normalizedEmail) == null) {
-            throw new BusinessException(BusinessCode.RECORD_NOT_FOUND, "User not found");
         }
     }
 
@@ -356,6 +358,7 @@ public class AuthServiceImpl implements AuthService {
         currentUserVO.setEmail(userAccount.getEmail());
         currentUserVO.setNickname(userAccount.getNickname());
         currentUserVO.setAvatarUrl(userAccount.getAvatarUrl());
+        currentUserVO.setAdmin(adminAccessService.isAdmin(userAccount));
         return currentUserVO;
     }
 

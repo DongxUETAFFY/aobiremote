@@ -1,6 +1,10 @@
 spring:
   application:
     name: aobihelper-backend
+  config:
+    import:
+      - optional:file:./config/mail-local.yml
+      - optional:file:./backend/config/mail-local.yml
   profiles:
     active: dev
 

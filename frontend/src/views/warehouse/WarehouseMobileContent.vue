@@ -50,9 +50,6 @@ const emit = defineEmits<{
       <p class="warehouse-mobile-hero__filter">
         当前筛选：{{ currentCategory ? categoryLabel(currentCategory) : '全部分类' }}
       </p>
-      <el-button class="warehouse-mobile-hero__button" type="primary" @click="emit('open-add')">
-        + 新增记录
-      </el-button>
     </section>
 
     <section class="warehouse-mobile-category ah-glass-card ah-page-section">
@@ -88,7 +85,7 @@ const emit = defineEmits<{
         @keyup.enter="emit('keyword-search')"
         @clear="emit('keyword-clear')"
       />
-      <el-button @click="emit('keyword-search')">搜索</el-button>
+      <el-button class="warehouse-mobile-search__button" @click="emit('keyword-search')">搜索</el-button>
     </section>
 
     <div v-if="loading" class="warehouse-loading">
@@ -103,22 +100,25 @@ const emit = defineEmits<{
 
     <div v-else class="warehouse-list">
       <section class="warehouse-mobile-batch ah-glass-card ah-page-section">
-        <el-checkbox
-          :model-value="allSelectableChecked"
-          :disabled="!hasSelectableItems"
-          @change="emit('toggle-select-all', $event)"
-        >
-          全选本页可公开物品
-        </el-checkbox>
+        <div class="warehouse-mobile-batch__toolbar">
+          <el-checkbox
+            :model-value="allSelectableChecked"
+            :disabled="!hasSelectableItems"
+            @change="emit('toggle-select-all', $event)"
+          >
+            全选本页可公开物品
+          </el-checkbox>
+          <el-button
+            class="warehouse-mobile-batch__button"
+            type="warning"
+            :disabled="!selectedSelectableIds.length"
+            :loading="batchPublicLoading"
+            @click="emit('batch-public')"
+          >
+            批量公开
+          </el-button>
+        </div>
         <p class="warehouse-mobile-batch__count">已选 {{ selectedSelectableIds.length }} 件</p>
-        <el-button
-          type="warning"
-          :disabled="!selectedSelectableIds.length"
-          :loading="batchPublicLoading"
-          @click="emit('batch-public')"
-        >
-          批量公开 {{ selectedSelectableIds.length ? `(${selectedSelectableIds.length})` : '' }}
-        </el-button>
         <p class="warehouse-mobile-batch__hint">仅支持选择未卖出且未公开的物品，避免误触取消公开。</p>
       </section>
 
@@ -127,6 +127,7 @@ const emit = defineEmits<{
           :current="currentPage"
           :total="totalCount"
           :page-size="pageSize"
+          hide-status
           @change="emit('page-change', $event)"
         />
       </div>
@@ -154,29 +155,19 @@ const emit = defineEmits<{
           </div>
 
           <div class="warehouse-mobile-item__top">
-            <div class="warehouse-mobile-item__title-wrap">
-              <h3 class="warehouse-mobile-item__name">{{ item.itemName }}</h3>
-              <span class="warehouse-mobile-item__status" :class="`is-${item.status}`">
-                {{ item.status === 'unsold' ? '未卖出' : '已卖出' }}
-              </span>
-            </div>
             <div class="warehouse-mobile-item__thumb">
               <SquareImagePreview :file-id="item.imageFileId" empty-text="无图" />
             </div>
-          </div>
-
-          <div class="warehouse-mobile-item__meta-grid">
-            <div class="warehouse-mobile-item__meta">
-              <strong>¥{{ item.buyPrice }}</strong>
-            </div>
-            <div class="warehouse-mobile-item__meta">
-              <strong>{{ formatDate(item.buyTime) }}</strong>
-            </div>
-            <div class="warehouse-mobile-item__meta">
-              <strong>{{ channelLabel(item.channel) }}</strong>
-            </div>
-            <div class="warehouse-mobile-item__meta">
-              <strong>{{ categoryLabel(item.category) }}</strong>
+            <div class="warehouse-mobile-item__body">
+              <div class="warehouse-mobile-item__title-wrap">
+                <h3 class="warehouse-mobile-item__name">{{ item.itemName }}</h3>
+                <span class="warehouse-mobile-item__price">¥{{ item.buyPrice }}</span>
+              </div>
+              <div class="warehouse-mobile-item__meta-grid">
+                <p class="warehouse-mobile-item__meta">买入时间: {{ formatDate(item.buyTime) }}</p>
+                <p class="warehouse-mobile-item__meta">渠道: {{ channelLabel(item.channel) }}</p>
+                <p class="warehouse-mobile-item__meta">分类: {{ categoryLabel(item.category) }}</p>
+              </div>
             </div>
           </div>
 
@@ -207,6 +198,7 @@ const emit = defineEmits<{
           :current="currentPage"
           :total="totalCount"
           :page-size="pageSize"
+          hide-status
           @change="emit('page-change', $event)"
         />
       </div>
@@ -246,11 +238,6 @@ const emit = defineEmits<{
 .warehouse-mobile-hero__filter {
   font-size: 13px;
   color: #8d7080;
-}
-
-.warehouse-mobile-hero__button {
-  width: 100%;
-  margin-top: 16px;
 }
 
 .warehouse-mobile-category {
@@ -358,6 +345,13 @@ const emit = defineEmits<{
   gap: 12px;
 }
 
+.warehouse-mobile-batch__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .warehouse-mobile-batch__count {
   margin: 0;
   color: var(--ah-title);
@@ -389,6 +383,12 @@ const emit = defineEmits<{
   gap: 12px;
 }
 
+.warehouse-mobile-item__body {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
 .warehouse-mobile-item__title-wrap {
   display: flex;
   align-items: center;
@@ -401,6 +401,9 @@ const emit = defineEmits<{
   color: var(--ah-title);
   font-size: 18px;
   line-height: 1.3;
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .warehouse-mobile-item__thumb {
@@ -408,47 +411,27 @@ const emit = defineEmits<{
   justify-content: center;
 }
 
-.warehouse-mobile-item__status {
+.warehouse-mobile-item__price {
   padding: 4px 10px;
   border-radius: 999px;
+  background: rgba(110, 200, 140, 0.16);
+  color: #3d5d36;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
   white-space: nowrap;
 }
 
-.warehouse-mobile-item__status.is-unsold {
-  background: rgba(255, 143, 177, 0.2);
-  color: #c44d73;
-}
-
-.warehouse-mobile-item__status.is-sold {
-  background: rgba(110, 200, 140, 0.2);
-  color: #3d8c5a;
-}
-
 .warehouse-mobile-item__meta-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .warehouse-mobile-item__meta {
-  display: grid;
-  gap: 4px;
-  padding: 12px;
-  border-radius: 16px;
-  background: rgba(255, 250, 247, 0.72);
-}
-
-.warehouse-mobile-item__meta-label {
-  color: #b27f93;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.warehouse-mobile-item__meta strong {
-  color: var(--ah-title);
-  font-size: 14px;
+  margin: 0;
+  color: var(--ah-text);
+  font-size: 13px;
+  line-height: 1.35;
 }
 
 .warehouse-mobile-item__remark {
@@ -466,5 +449,242 @@ const emit = defineEmits<{
 
 .warehouse-mobile-item__actions :deep(.el-button) {
   margin: 0;
+}
+
+@media (max-width: 768px) {
+  .warehouse-mobile-hero,
+  .warehouse-mobile-category,
+  .warehouse-mobile-search,
+  .warehouse-mobile-batch,
+  .warehouse-pagination,
+  .warehouse-mobile-item {
+    border-color: rgba(146, 174, 118, 0.25);
+    background:
+      linear-gradient(135deg, rgba(255, 254, 244, 0.95) 0%, rgba(250, 244, 226, 0.9) 100%);
+    box-shadow: 0 3px 10px rgba(116, 142, 94, 0.1);
+  }
+
+  .warehouse-content {
+    gap: 5px;
+  }
+
+  .warehouse-mobile-hero__label,
+  .warehouse-mobile-category__label,
+  .warehouse-mobile-search__label {
+    font-size: 11px;
+  }
+
+  .warehouse-mobile-hero__count {
+    margin-top: 2px;
+    font-size: 16px;
+  }
+
+  .warehouse-mobile-hero__total,
+  .warehouse-mobile-hero__filter,
+  .warehouse-mobile-category__count,
+  .warehouse-mobile-batch__hint,
+  .warehouse-mobile-item__remark {
+    font-size: 11px;
+  }
+
+  .warehouse-mobile-hero__total,
+  .warehouse-mobile-hero__filter {
+    margin-top: 1px;
+  }
+
+  .warehouse-mobile-category {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .warehouse-mobile-category__card {
+    gap: 1px;
+    padding: 5px 7px;
+    border-radius: 9px;
+    border-color: rgba(146, 174, 118, 0.2);
+    background: rgba(255, 253, 245, 0.82);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  }
+
+  .warehouse-mobile-category__card.is-active {
+    border-color: rgba(100, 151, 86, 0.42);
+    background: linear-gradient(135deg, rgba(232, 244, 215, 0.94), rgba(255, 247, 224, 0.92));
+    box-shadow: 0 4px 12px rgba(116, 142, 94, 0.14);
+  }
+
+  .warehouse-mobile-category__price {
+    font-size: 13px;
+  }
+
+  .warehouse-mobile-search,
+  .warehouse-mobile-batch {
+    gap: 4px;
+  }
+
+  .warehouse-mobile-search {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .warehouse-mobile-search :deep(.el-input__wrapper) {
+    border: 1px solid rgba(146, 174, 118, 0.25);
+    background: rgba(255, 255, 250, 0.94);
+    box-shadow: inset 0 1px 2px rgba(116, 142, 94, 0.06);
+  }
+
+  .warehouse-mobile-search__label {
+    display: none;
+  }
+
+  .warehouse-mobile-search__button,
+  .warehouse-mobile-batch__button {
+    min-height: 26px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 10px;
+  }
+
+  .warehouse-mobile-search__button {
+    border: 0;
+    background: linear-gradient(135deg, #9fc87f, #6fa45c);
+    color: #fff;
+    box-shadow: 0 4px 10px rgba(111, 164, 92, 0.22);
+  }
+
+  .warehouse-mobile-batch__button {
+    border: 0;
+    background: linear-gradient(135deg, #f2d39a, #dcae63);
+    color: #65452a;
+    box-shadow: 0 4px 10px rgba(198, 148, 74, 0.18);
+  }
+
+  .warehouse-mobile-batch__toolbar {
+    gap: 6px;
+  }
+
+  .warehouse-mobile-batch__toolbar :deep(.el-checkbox) {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .warehouse-mobile-batch__toolbar :deep(.el-checkbox__label) {
+    padding-left: 5px;
+    font-size: 10px;
+    line-height: 1.2;
+    white-space: normal;
+  }
+
+  .warehouse-mobile-batch__toolbar :deep(.el-checkbox__inner) {
+    border-color: rgba(146, 174, 118, 0.42);
+    background: rgba(255, 255, 250, 0.88);
+  }
+
+  .warehouse-mobile-batch__toolbar :deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
+    border-color: #6fa45c;
+    background: #6fa45c;
+  }
+
+  .warehouse-list,
+  .warehouse-list__group {
+    gap: 5px;
+  }
+
+  .warehouse-pagination {
+    padding: 0;
+  }
+
+  .warehouse-mobile-item {
+    gap: 4px;
+  }
+
+  .warehouse-mobile-item__price {
+    background: linear-gradient(135deg, rgba(223, 238, 205, 0.95), rgba(244, 232, 192, 0.92));
+    color: #3f5d35;
+  }
+
+  .warehouse-mobile-item__top {
+    grid-template-columns: 62px minmax(0, 1fr);
+    align-items: start;
+    gap: 7px;
+  }
+
+  .warehouse-mobile-item__thumb {
+    justify-content: flex-start;
+  }
+
+  .warehouse-mobile-item__body {
+    gap: 3px;
+  }
+
+  .warehouse-mobile-item__title-wrap {
+    align-items: flex-start;
+    flex-direction: row;
+    gap: 5px;
+  }
+
+  .warehouse-mobile-item__name {
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  .warehouse-mobile-item__price {
+    padding: 2px 6px;
+    font-size: 9px;
+  }
+
+  .warehouse-mobile-item__meta-grid {
+    gap: 2px;
+  }
+
+  .warehouse-mobile-item__meta {
+    color: #4f4135;
+    font-size: 10px;
+    line-height: 1.25;
+  }
+
+  .warehouse-mobile-item__actions {
+    gap: 5px;
+    grid-template-columns: repeat(4, max-content);
+    justify-content: start;
+  }
+
+  .warehouse-mobile-item__actions :deep(.el-button) {
+    min-height: 22px;
+    padding: 2px 7px;
+    border-radius: 9px;
+    border: 1px solid rgba(146, 174, 118, 0.34);
+    background: rgba(255, 255, 250, 0.78);
+    color: #526a45;
+    font-size: 10px;
+    box-shadow: none;
+  }
+
+  .warehouse-mobile-item__actions :deep(.el-button--primary),
+  .warehouse-mobile-item__actions :deep(.el-button--success) {
+    border-color: rgba(111, 164, 92, 0.32);
+    background: rgba(232, 244, 215, 0.82);
+    color: #4f8745;
+  }
+
+  .warehouse-mobile-item__actions :deep(.el-button--warning) {
+    border-color: rgba(211, 164, 91, 0.32);
+    background: rgba(252, 237, 205, 0.84);
+    color: #9a6a2d;
+  }
+
+  .warehouse-mobile-item__actions :deep(.el-button--danger) {
+    border-color: rgba(199, 105, 119, 0.28);
+    background: rgba(251, 232, 228, 0.82);
+    color: #b95662;
+  }
+
+  .warehouse-mobile-item__selection {
+    font-size: 10px;
+  }
+
+  .warehouse-mobile-item__remark {
+    font-size: 10px;
+    line-height: 1.35;
+  }
 }
 </style>

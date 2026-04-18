@@ -9,6 +9,8 @@ import io.github.dongxuetaffy.aobihelper.auth.mapper.UserAccountMapper;
 import io.github.dongxuetaffy.aobihelper.common.constant.BusinessCode;
 import io.github.dongxuetaffy.aobihelper.common.exception.BusinessException;
 import io.github.dongxuetaffy.aobihelper.common.guard.service.OperationGuardService;
+import io.github.dongxuetaffy.aobihelper.file.entity.FileAsset;
+import io.github.dongxuetaffy.aobihelper.file.mapper.FileAssetMapper;
 import io.github.dongxuetaffy.aobihelper.inventory.entity.InventoryItem;
 import io.github.dongxuetaffy.aobihelper.inventory.mapper.InventoryItemMapper;
 import io.github.dongxuetaffy.aobihelper.publiczone.dto.PublicPostCreateRequest;
@@ -51,17 +53,20 @@ public class PublicPostServiceImpl extends ServiceImpl<PublicPostMapper, PublicP
     private final UserAccountMapper userAccountMapper;
     private final PublicPostFlagMapper publicPostFlagMapper;
     private final InventoryItemMapper inventoryItemMapper;
+    private final FileAssetMapper fileAssetMapper;
     private final OperationGuardService operationGuardService;
 
     public PublicPostServiceImpl(
         UserAccountMapper userAccountMapper,
         PublicPostFlagMapper publicPostFlagMapper,
         InventoryItemMapper inventoryItemMapper,
+        FileAssetMapper fileAssetMapper,
         OperationGuardService operationGuardService
     ) {
         this.userAccountMapper = userAccountMapper;
         this.publicPostFlagMapper = publicPostFlagMapper;
         this.inventoryItemMapper = inventoryItemMapper;
+        this.fileAssetMapper = fileAssetMapper;
         this.operationGuardService = operationGuardService;
     }
 
@@ -159,7 +164,7 @@ public class PublicPostServiceImpl extends ServiceImpl<PublicPostMapper, PublicP
         post.setChannel(request.getChannel());
         post.setCategory(request.getCategory());
         post.setRemark(normalizeNullableText(request.getRemark()));
-        post.setImageFileId(normalizeNullableText(request.getImageFileId()));
+        post.setImageFileId(preparePublicImageFile(currentUserId, request.getImageFileId()));
         post.setUntrustedCount(0);
         post.setPublisherName(resolvePublisherName(user));
         post.setPublisherAvatar(normalizeNullableText(user.getAvatarUrl()));
@@ -195,7 +200,7 @@ public class PublicPostServiceImpl extends ServiceImpl<PublicPostMapper, PublicP
         post.setChannel(request.getChannel());
         post.setCategory(request.getCategory());
         post.setRemark(normalizeNullableText(request.getRemark()));
-        post.setImageFileId(normalizeNullableText(request.getImageFileId()));
+        post.setImageFileId(preparePublicImageFile(currentUserId, request.getImageFileId()));
         post.setUpdatedAt(LocalDateTime.now());
         baseMapper.updateById(post);
         return new PublicPostIdVO(post.getId());
@@ -298,7 +303,7 @@ public class PublicPostServiceImpl extends ServiceImpl<PublicPostMapper, PublicP
         post.setChannel(item.getChannel());
         post.setCategory(item.getCategory());
         post.setRemark(normalizeNullableText(remark));
-        post.setImageFileId(resolveSourceImageFileId(item, imageFileId));
+        post.setImageFileId(preparePublicImageFile(currentUserId, resolveSourceImageFileId(item, imageFileId)));
         post.setUntrustedCount(0);
         post.setPublisherName(resolvePublisherName(user));
         post.setPublisherAvatar(normalizeNullableText(user.getAvatarUrl()));
@@ -534,6 +539,37 @@ public class PublicPostServiceImpl extends ServiceImpl<PublicPostMapper, PublicP
             return normalizedImageFileId;
         }
         return normalizeNullableText(item.getImageFileId());
+    }
+
+    private String preparePublicImageFile(Long currentUserId, String imageFileId) {
+        String normalizedImageFileId = normalizeNullableText(imageFileId);
+        if (normalizedImageFileId == null) {
+            return null;
+        }
+
+        Long parsedImageFileId = parseImageFileId(normalizedImageFileId);
+        FileAsset fileAsset = fileAssetMapper.selectById(parsedImageFileId);
+        if (fileAsset == null) {
+            throw new BusinessException(BusinessCode.RECORD_NOT_FOUND, "Image not found");
+        }
+        if (!fileAsset.getUserId().equals(currentUserId)) {
+            throw new BusinessException(BusinessCode.FORBIDDEN, "You can only publish your own image");
+        }
+
+        if (!Boolean.TRUE.equals(fileAsset.getIsPublic())) {
+            fileAsset.setIsPublic(Boolean.TRUE);
+            fileAsset.setUpdatedAt(LocalDateTime.now());
+            fileAssetMapper.updateById(fileAsset);
+        }
+        return normalizedImageFileId;
+    }
+
+    private Long parseImageFileId(String imageFileId) {
+        try {
+            return Long.parseLong(imageFileId);
+        } catch (NumberFormatException exception) {
+            throw new BusinessException(BusinessCode.PARAM_INVALID, "Invalid image file id");
+        }
     }
 
     private String normalizeRequiredText(String value) {

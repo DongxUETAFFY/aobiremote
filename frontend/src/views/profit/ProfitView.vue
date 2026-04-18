@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import FloatingQuickNav from '@/components/common/FloatingQuickNav.vue'
 import SquareImagePreview from '@/components/common/SquareImagePreview.vue'
 import ProfitDesktopContent from './ProfitDesktopContent.vue'
 import ProfitMobileContent from './ProfitMobileContent.vue'
@@ -379,7 +380,13 @@ onBeforeUnmount(() => {
       @delete="handleDelete"
     />
 
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="540px" :close-on-click-modal="false">
+    <el-dialog
+      v-model="dialogVisible"
+      :title="dialogTitle"
+      :width="isMobile ? '100%' : '540px'"
+      :fullscreen="isMobile"
+      :close-on-click-modal="false"
+    >
       <el-form label-position="top" class="profit-form">
         <el-form-item label="物品名称">
           <el-input v-model="form.itemName" placeholder="例如：龙娃惊讶" maxlength="40" />
@@ -435,7 +442,7 @@ onBeforeUnmount(() => {
             ref="fileInputRef"
             type="file"
             :accept="IMAGE_INPUT_ACCEPT"
-            style="display:none"
+            style="display: none"
             @change="handleFileChange"
           />
 
@@ -467,6 +474,7 @@ onBeforeUnmount(() => {
     <button class="fab fab--add" type="button" title="新增记录" @click="openAddDialog">
       +
     </button>
+    <FloatingQuickNav />
   </div>
 </template>
 
@@ -560,6 +568,16 @@ onBeforeUnmount(() => {
   background: #fff;
 }
 
+@media (min-width: 769px) {
+  .fab {
+    right: max(28px, calc((100vw - var(--ah-shell-width)) / 2 + 16px));
+  }
+
+  .fab--top {
+    bottom: 268px;
+  }
+}
+
 .fab-enter-active,
 .fab-leave-active {
   transition: opacity 0.25s, transform 0.25s;
@@ -577,7 +595,34 @@ onBeforeUnmount(() => {
   }
 
   .profit-form__upload {
-    flex-direction: column;
+    gap: 12px;
+  }
+
+  .profit-form__upload-placeholder {
+    width: 96px;
+    height: 96px;
+    border-radius: 16px;
+    font-size: 12px;
+  }
+
+  .profit-form__upload-info,
+  .profit-form__upload-progress {
+    font-size: 12px;
+  }
+
+  .fab {
+    right: 18px;
+    width: 44px;
+    height: 44px;
+    font-size: 22px;
+  }
+
+  .fab--add {
+    bottom: 94px;
+  }
+
+  .fab--top {
+    bottom: 148px;
   }
 }
 </style>

@@ -3,6 +3,7 @@ export interface UserProfile {
   email: string
   nickname: string
   avatarUrl: string
+  admin: boolean
 }
 
 export interface LoginResponse {

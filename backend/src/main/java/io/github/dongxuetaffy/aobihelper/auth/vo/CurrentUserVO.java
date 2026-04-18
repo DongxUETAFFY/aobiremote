@@ -5,6 +5,7 @@ public class CurrentUserVO {
     private String email;
     private String nickname;
     private String avatarUrl;
+    private Boolean admin;
 
     public Long getId() {
         return id;
@@ -36,5 +37,13 @@ public class CurrentUserVO {
 
     public void setAvatarUrl(String avatarUrl) {
         this.avatarUrl = avatarUrl;
+    }
+
+    public Boolean getAdmin() {
+        return admin;
+    }
+
+    public void setAdmin(Boolean admin) {
+        this.admin = admin;
     }
 }
