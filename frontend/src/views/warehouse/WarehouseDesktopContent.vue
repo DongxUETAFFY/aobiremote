@@ -431,9 +431,14 @@ const toggleItemSelection = (itemId: number, checked: boolean | string | number)
 }
 
 .warehouse-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
   gap: 14px;
+}
+
+.warehouse-batch,
+.warehouse-pagination {
+  grid-column: 1 / -1;
 }
 
 .warehouse-pagination {
@@ -442,9 +447,13 @@ const toggleItemSelection = (itemId: number, checked: boolean | string | number)
 
 .warehouse-item {
   display: flex;
-  gap: 20px;
+  gap: 14px;
   align-items: flex-start;
   flex-wrap: wrap;
+}
+
+.warehouse-item.ah-page-section {
+  padding: 18px;
 }
 
 .warehouse-item__selection {
@@ -453,6 +462,12 @@ const toggleItemSelection = (itemId: number, checked: boolean | string | number)
 
 .warehouse-item__thumb {
   flex-shrink: 0;
+}
+
+.warehouse-item__thumb :deep(.square-preview) {
+  width: 112px;
+  height: 112px;
+  border-radius: 18px;
 }
 
 .warehouse-item__body {
@@ -470,7 +485,9 @@ const toggleItemSelection = (itemId: number, checked: boolean | string | number)
 .warehouse-item__name {
   margin: 0;
   color: var(--ah-title);
-  font-size: 18px;
+  font-size: 16px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .warehouse-item__status {
@@ -491,9 +508,9 @@ const toggleItemSelection = (itemId: number, checked: boolean | string | number)
 }
 
 .warehouse-item__meta {
-  margin-top: 8px;
+  margin-top: 6px;
   color: var(--ah-text);
-  font-size: 14px;
+  font-size: 13px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -505,13 +522,13 @@ const toggleItemSelection = (itemId: number, checked: boolean | string | number)
 }
 
 .warehouse-item__remark {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   color: var(--ah-text);
   font-size: 13px;
 }
 
 .warehouse-item__actions {
-  margin-top: 12px;
+  margin-top: 10px;
   display: flex;
   gap: 8px;
   flex-wrap: wrap;

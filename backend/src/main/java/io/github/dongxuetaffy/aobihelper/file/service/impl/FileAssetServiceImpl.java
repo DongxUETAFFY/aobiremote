@@ -9,11 +9,9 @@ import io.github.dongxuetaffy.aobihelper.file.mapper.FileAssetMapper;
 import io.github.dongxuetaffy.aobihelper.file.service.FileAssetService;
 import io.github.dongxuetaffy.aobihelper.file.vo.FileUploadVO;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Set;
@@ -54,6 +52,8 @@ public class FileAssetServiceImpl extends ServiceImpl<FileAssetMapper, FileAsset
                 "Image size exceeds the allowed limit"
             );
         }
+        byte[] fileBytes = readFileBytes(file);
+        ensureImageSignature(contentType, fileBytes);
 
         boolean isPublic = resolvePublicScene(scene);
         LocalDate today = LocalDate.now();
@@ -67,9 +67,7 @@ public class FileAssetServiceImpl extends ServiceImpl<FileAssetMapper, FileAsset
 
         try {
             Files.createDirectories(targetPath.getParent());
-            try (InputStream inputStream = file.getInputStream()) {
-                Files.copy(inputStream, targetPath, StandardCopyOption.REPLACE_EXISTING);
-            }
+            Files.write(targetPath, fileBytes);
         } catch (IOException exception) {
             throw new BusinessException(BusinessCode.UPLOAD_FAILED, "Failed to store image");
         }
@@ -157,5 +155,49 @@ public class FileAssetServiceImpl extends ServiceImpl<FileAssetMapper, FileAsset
             case "image/webp" -> ".webp";
             default -> "";
         };
+    }
+
+    private byte[] readFileBytes(MultipartFile file) {
+        try {
+            return file.getBytes();
+        } catch (IOException exception) {
+            throw new BusinessException(BusinessCode.UPLOAD_FAILED, "Failed to read image");
+        }
+    }
+
+    private void ensureImageSignature(String contentType, byte[] bytes) {
+        boolean matched = switch (contentType) {
+            case "image/jpeg" -> startsWith(bytes, 0xFF, 0xD8, 0xFF);
+            case "image/png" -> startsWith(bytes, 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A);
+            case "image/webp" -> isWebp(bytes);
+            default -> false;
+        };
+        if (!matched) {
+            throw new BusinessException(BusinessCode.FILE_TYPE_UNSUPPORTED, "Image content does not match its type");
+        }
+    }
+
+    private boolean startsWith(byte[] bytes, int... signature) {
+        if (bytes.length < signature.length) {
+            return false;
+        }
+        for (int index = 0; index < signature.length; index += 1) {
+            if ((bytes[index] & 0xFF) != signature[index]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean isWebp(byte[] bytes) {
+        return bytes.length >= 12
+            && bytes[0] == 'R'
+            && bytes[1] == 'I'
+            && bytes[2] == 'F'
+            && bytes[3] == 'F'
+            && bytes[8] == 'W'
+            && bytes[9] == 'E'
+            && bytes[10] == 'B'
+            && bytes[11] == 'P';
     }
 }

@@ -370,23 +370,34 @@ const emit = defineEmits<{
 }
 
 .profit-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
   gap: 14px;
 }
 
 .profit-pagination {
+  grid-column: 1 / -1;
   padding: 8px 0;
 }
 
 .profit-item {
   display: flex;
-  gap: 20px;
+  gap: 14px;
   align-items: flex-start;
+}
+
+.profit-item.ah-page-section {
+  padding: 18px;
 }
 
 .profit-item__thumb {
   flex-shrink: 0;
+}
+
+.profit-item__thumb :deep(.square-preview) {
+  width: 112px;
+  height: 112px;
+  border-radius: 18px;
 }
 
 .profit-item__body {
@@ -404,7 +415,9 @@ const emit = defineEmits<{
 .profit-item__name {
   margin: 0;
   color: var(--ah-title);
-  font-size: 18px;
+  font-size: 16px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .profit-item__profit {
@@ -425,9 +438,9 @@ const emit = defineEmits<{
 }
 
 .profit-item__meta {
-  margin-top: 8px;
+  margin-top: 6px;
   color: var(--ah-text);
-  font-size: 14px;
+  font-size: 13px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -452,13 +465,13 @@ const emit = defineEmits<{
 }
 
 .profit-item__remark {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   color: var(--ah-text);
   font-size: 13px;
 }
 
 .profit-item__actions {
-  margin-top: 12px;
+  margin-top: 10px;
   display: flex;
   gap: 8px;
   flex-wrap: wrap;

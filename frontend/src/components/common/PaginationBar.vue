@@ -5,6 +5,7 @@ const props = defineProps<{
   current: number
   total: number
   pageSize?: number
+  hideStatus?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -42,7 +43,7 @@ const submitInput = () => {
 
 <template>
   <div class="pagination">
-    <div class="pagination__status">
+    <div v-if="!hideStatus" class="pagination__status">
       第 {{ current }} / {{ totalPages }} 页
     </div>
     <button
@@ -155,12 +156,46 @@ const submitInput = () => {
 
 @media (max-width: 600px) {
   .pagination {
-    gap: 8px;
+    gap: 6px;
+    padding: 5px 0;
   }
 
   .pagination__status {
     width: 100%;
     text-align: center;
+    display: none;
+  }
+
+  .pagination__btn {
+    min-width: 28px;
+    height: 28px;
+    padding: 0 6px;
+    border-color: rgba(146, 174, 118, 0.26);
+    background: rgba(255, 255, 250, 0.82);
+    color: #6d7657;
+    font-size: 11px;
+    box-shadow: 0 2px 7px rgba(116, 142, 94, 0.08);
+  }
+
+  .pagination__jump {
+    gap: 5px;
+    padding: 0;
+  }
+
+  .pagination__jump-label,
+  .pagination__jump-total {
+    color: #736451;
+    font-size: 11px;
+  }
+
+  .pagination__input {
+    width: 54px;
+    height: 28px;
+    padding: 0 6px;
+    border-color: rgba(146, 174, 118, 0.26);
+    background: rgba(255, 255, 250, 0.86);
+    color: #5f5744;
+    font-size: 11px;
   }
 }
 </style>

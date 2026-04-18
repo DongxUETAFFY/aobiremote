@@ -33,7 +33,7 @@ public class AuthController {
         @Valid @RequestBody SendRegisterCodeRequest request,
         HttpServletRequest httpServletRequest
     ) {
-        authService.sendRegisterCode(request.getEmail(), httpServletRequest.getRemoteAddr());
+        authService.sendRegisterCode(request.getEmail(), resolveClientIp(httpServletRequest));
         return ApiResponse.success("Verification code sent", null);
     }
 
@@ -42,7 +42,7 @@ public class AuthController {
         @Valid @RequestBody SendRegisterCodeRequest request,
         HttpServletRequest httpServletRequest
     ) {
-        authService.sendResetPasswordCode(request.getEmail(), httpServletRequest.getRemoteAddr());
+        authService.sendResetPasswordCode(request.getEmail(), resolveClientIp(httpServletRequest));
         return ApiResponse.success("Verification code sent", null);
     }
 
@@ -57,7 +57,7 @@ public class AuthController {
         @Valid @RequestBody LoginRequest request,
         HttpServletRequest httpServletRequest
     ) {
-        return ApiResponse.success("Login success", authService.login(request, httpServletRequest.getRemoteAddr()));
+        return ApiResponse.success("Login success", authService.login(request, resolveClientIp(httpServletRequest)));
     }
 
     @PostMapping("/register")
@@ -83,5 +83,27 @@ public class AuthController {
     public ApiResponse<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         authService.resetPassword(request);
         return ApiResponse.success("Password reset successfully", null);
+    }
+
+    private String resolveClientIp(HttpServletRequest request) {
+        String forwardedFor = request.getHeader("X-Forwarded-For");
+        String forwardedIp = firstForwardedIp(forwardedFor);
+        if (forwardedIp != null) {
+            return forwardedIp;
+        }
+
+        String realIp = request.getHeader("X-Real-IP");
+        if (realIp != null && !realIp.isBlank()) {
+            return realIp.trim();
+        }
+        return request.getRemoteAddr();
+    }
+
+    private String firstForwardedIp(String forwardedFor) {
+        if (forwardedFor == null || forwardedFor.isBlank()) {
+            return null;
+        }
+        String first = forwardedFor.split(",", 2)[0].trim();
+        return first.isBlank() ? null : first;
     }
 }

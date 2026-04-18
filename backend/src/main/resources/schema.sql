@@ -48,15 +48,75 @@ CREATE TABLE IF NOT EXISTS inventory_item (
     CONSTRAINT fk_inventory_item_user_id FOREIGN KEY (user_id) REFERENCES user_account (id)
 );
 
-DROP INDEX IF EXISTS idx_inventory_user_status ON inventory_item;
+SET @drop_index_sql = (
+    SELECT IF(
+        EXISTS (
+            SELECT 1 FROM information_schema.statistics
+            WHERE table_schema = DATABASE() AND table_name = 'inventory_item' AND index_name = 'idx_inventory_user_status'
+        ),
+        'DROP INDEX idx_inventory_user_status ON inventory_item',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @drop_index_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 CREATE INDEX idx_inventory_user_status ON inventory_item(user_id, status);
-DROP INDEX IF EXISTS idx_inventory_user_buy_time ON inventory_item;
+SET @drop_index_sql = (
+    SELECT IF(
+        EXISTS (
+            SELECT 1 FROM information_schema.statistics
+            WHERE table_schema = DATABASE() AND table_name = 'inventory_item' AND index_name = 'idx_inventory_user_buy_time'
+        ),
+        'DROP INDEX idx_inventory_user_buy_time ON inventory_item',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @drop_index_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 CREATE INDEX idx_inventory_user_buy_time ON inventory_item(user_id, buy_time DESC);
-DROP INDEX IF EXISTS idx_inventory_user_buy_price ON inventory_item;
+SET @drop_index_sql = (
+    SELECT IF(
+        EXISTS (
+            SELECT 1 FROM information_schema.statistics
+            WHERE table_schema = DATABASE() AND table_name = 'inventory_item' AND index_name = 'idx_inventory_user_buy_price'
+        ),
+        'DROP INDEX idx_inventory_user_buy_price ON inventory_item',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @drop_index_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 CREATE INDEX idx_inventory_user_buy_price ON inventory_item(user_id, buy_price DESC);
-DROP INDEX IF EXISTS idx_inventory_user_public ON inventory_item;
+SET @drop_index_sql = (
+    SELECT IF(
+        EXISTS (
+            SELECT 1 FROM information_schema.statistics
+            WHERE table_schema = DATABASE() AND table_name = 'inventory_item' AND index_name = 'idx_inventory_user_public'
+        ),
+        'DROP INDEX idx_inventory_user_public ON inventory_item',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @drop_index_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 CREATE INDEX idx_inventory_user_public ON inventory_item(user_id, public_posted);
-DROP INDEX IF EXISTS idx_inventory_public_post_id ON inventory_item;
+SET @drop_index_sql = (
+    SELECT IF(
+        EXISTS (
+            SELECT 1 FROM information_schema.statistics
+            WHERE table_schema = DATABASE() AND table_name = 'inventory_item' AND index_name = 'idx_inventory_public_post_id'
+        ),
+        'DROP INDEX idx_inventory_public_post_id ON inventory_item',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @drop_index_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 CREATE INDEX idx_inventory_public_post_id ON inventory_item(public_post_id);
 
 CREATE TABLE IF NOT EXISTS public_post (
@@ -79,15 +139,75 @@ CREATE TABLE IF NOT EXISTS public_post (
     CONSTRAINT fk_public_post_user_id FOREIGN KEY (user_id) REFERENCES user_account (id)
 );
 
-DROP INDEX IF EXISTS idx_public_post_trade_time ON public_post;
+SET @drop_index_sql = (
+    SELECT IF(
+        EXISTS (
+            SELECT 1 FROM information_schema.statistics
+            WHERE table_schema = DATABASE() AND table_name = 'public_post' AND index_name = 'idx_public_post_trade_time'
+        ),
+        'DROP INDEX idx_public_post_trade_time ON public_post',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @drop_index_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 CREATE INDEX idx_public_post_trade_time ON public_post(trade_time DESC);
-DROP INDEX IF EXISTS idx_public_post_price ON public_post;
+SET @drop_index_sql = (
+    SELECT IF(
+        EXISTS (
+            SELECT 1 FROM information_schema.statistics
+            WHERE table_schema = DATABASE() AND table_name = 'public_post' AND index_name = 'idx_public_post_price'
+        ),
+        'DROP INDEX idx_public_post_price ON public_post',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @drop_index_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 CREATE INDEX idx_public_post_price ON public_post(price DESC);
-DROP INDEX IF EXISTS idx_public_post_user ON public_post;
+SET @drop_index_sql = (
+    SELECT IF(
+        EXISTS (
+            SELECT 1 FROM information_schema.statistics
+            WHERE table_schema = DATABASE() AND table_name = 'public_post' AND index_name = 'idx_public_post_user'
+        ),
+        'DROP INDEX idx_public_post_user ON public_post',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @drop_index_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 CREATE INDEX idx_public_post_user ON public_post(user_id);
-DROP INDEX IF EXISTS idx_public_post_source_item ON public_post;
+SET @drop_index_sql = (
+    SELECT IF(
+        EXISTS (
+            SELECT 1 FROM information_schema.statistics
+            WHERE table_schema = DATABASE() AND table_name = 'public_post' AND index_name = 'idx_public_post_source_item'
+        ),
+        'DROP INDEX idx_public_post_source_item ON public_post',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @drop_index_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 CREATE INDEX idx_public_post_source_item ON public_post(source_inventory_item_id);
-DROP INDEX IF EXISTS idx_public_post_category ON public_post;
+SET @drop_index_sql = (
+    SELECT IF(
+        EXISTS (
+            SELECT 1 FROM information_schema.statistics
+            WHERE table_schema = DATABASE() AND table_name = 'public_post' AND index_name = 'idx_public_post_category'
+        ),
+        'DROP INDEX idx_public_post_category ON public_post',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @drop_index_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 CREATE INDEX idx_public_post_category ON public_post(category);
 
 CREATE TABLE IF NOT EXISTS public_post_flag (
@@ -100,7 +220,19 @@ CREATE TABLE IF NOT EXISTS public_post_flag (
     CONSTRAINT fk_public_post_flag_post_id FOREIGN KEY (post_id) REFERENCES public_post (id)
 );
 
-DROP INDEX IF EXISTS idx_public_post_flag_post ON public_post_flag;
+SET @drop_index_sql = (
+    SELECT IF(
+        EXISTS (
+            SELECT 1 FROM information_schema.statistics
+            WHERE table_schema = DATABASE() AND table_name = 'public_post_flag' AND index_name = 'idx_public_post_flag_post'
+        ),
+        'DROP INDEX idx_public_post_flag_post ON public_post_flag',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @drop_index_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 CREATE INDEX idx_public_post_flag_post ON public_post_flag(post_id);
 
 CREATE TABLE IF NOT EXISTS operation_guard (
@@ -117,7 +249,19 @@ CREATE TABLE IF NOT EXISTS operation_guard (
     CONSTRAINT fk_operation_guard_user_id FOREIGN KEY (user_id) REFERENCES user_account (id)
 );
 
-DROP INDEX IF EXISTS idx_operation_guard_user_action ON operation_guard;
+SET @drop_index_sql = (
+    SELECT IF(
+        EXISTS (
+            SELECT 1 FROM information_schema.statistics
+            WHERE table_schema = DATABASE() AND table_name = 'operation_guard' AND index_name = 'idx_operation_guard_user_action'
+        ),
+        'DROP INDEX idx_operation_guard_user_action ON operation_guard',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @drop_index_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 CREATE INDEX idx_operation_guard_user_action ON operation_guard(user_id, action);
 
 CREATE TABLE IF NOT EXISTS feedback (
@@ -130,9 +274,33 @@ CREATE TABLE IF NOT EXISTS feedback (
     CONSTRAINT fk_feedback_user_id FOREIGN KEY (user_id) REFERENCES user_account (id)
 );
 
-DROP INDEX IF EXISTS idx_feedback_user ON feedback;
+SET @drop_index_sql = (
+    SELECT IF(
+        EXISTS (
+            SELECT 1 FROM information_schema.statistics
+            WHERE table_schema = DATABASE() AND table_name = 'feedback' AND index_name = 'idx_feedback_user'
+        ),
+        'DROP INDEX idx_feedback_user ON feedback',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @drop_index_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 CREATE INDEX idx_feedback_user ON feedback(user_id);
-DROP INDEX IF EXISTS idx_feedback_submit_date ON feedback;
+SET @drop_index_sql = (
+    SELECT IF(
+        EXISTS (
+            SELECT 1 FROM information_schema.statistics
+            WHERE table_schema = DATABASE() AND table_name = 'feedback' AND index_name = 'idx_feedback_submit_date'
+        ),
+        'DROP INDEX idx_feedback_submit_date ON feedback',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @drop_index_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 CREATE INDEX idx_feedback_submit_date ON feedback(submit_date DESC);
 
 CREATE TABLE IF NOT EXISTS file_asset (
@@ -150,7 +318,31 @@ CREATE TABLE IF NOT EXISTS file_asset (
     CONSTRAINT fk_file_asset_user_id FOREIGN KEY (user_id) REFERENCES user_account (id)
 );
 
-DROP INDEX IF EXISTS idx_file_asset_user ON file_asset;
+SET @drop_index_sql = (
+    SELECT IF(
+        EXISTS (
+            SELECT 1 FROM information_schema.statistics
+            WHERE table_schema = DATABASE() AND table_name = 'file_asset' AND index_name = 'idx_file_asset_user'
+        ),
+        'DROP INDEX idx_file_asset_user ON file_asset',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @drop_index_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 CREATE INDEX idx_file_asset_user ON file_asset(user_id);
-DROP INDEX IF EXISTS idx_file_asset_object_key ON file_asset;
+SET @drop_index_sql = (
+    SELECT IF(
+        EXISTS (
+            SELECT 1 FROM information_schema.statistics
+            WHERE table_schema = DATABASE() AND table_name = 'file_asset' AND index_name = 'idx_file_asset_object_key'
+        ),
+        'DROP INDEX idx_file_asset_object_key ON file_asset',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @drop_index_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 CREATE INDEX idx_file_asset_object_key ON file_asset(object_key);

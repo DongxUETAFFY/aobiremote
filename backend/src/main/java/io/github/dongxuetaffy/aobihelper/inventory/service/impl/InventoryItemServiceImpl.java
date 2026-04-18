@@ -220,7 +220,7 @@ public class InventoryItemServiceImpl extends ServiceImpl<InventoryItemMapper, I
                 item.getId(),
                 item.getBuyPrice(),
                 item.getBuyTime(),
-                "sell",
+                "buy",
                 item.getRemark(),
                 item.getImageFileId(),
                 buildBatchRequestId(request.getRequestId(), "batchToggleInventoryPublic", itemId, index)
