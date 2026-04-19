@@ -118,6 +118,90 @@ PREPARE stmt FROM @drop_index_sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 CREATE INDEX idx_inventory_public_post_id ON inventory_item(public_post_id);
+SET @drop_index_sql = (
+    SELECT IF(
+        EXISTS (
+            SELECT 1 FROM information_schema.statistics
+            WHERE table_schema = DATABASE() AND table_name = 'inventory_item' AND index_name = 'idx_inventory_user_status_buy_time'
+        ),
+        'DROP INDEX idx_inventory_user_status_buy_time ON inventory_item',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @drop_index_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+CREATE INDEX idx_inventory_user_status_buy_time ON inventory_item(user_id, status, buy_time DESC, created_at DESC);
+SET @drop_index_sql = (
+    SELECT IF(
+        EXISTS (
+            SELECT 1 FROM information_schema.statistics
+            WHERE table_schema = DATABASE() AND table_name = 'inventory_item' AND index_name = 'idx_inventory_user_status_buy_price'
+        ),
+        'DROP INDEX idx_inventory_user_status_buy_price ON inventory_item',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @drop_index_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+CREATE INDEX idx_inventory_user_status_buy_price ON inventory_item(user_id, status, buy_price DESC, created_at DESC);
+SET @drop_index_sql = (
+    SELECT IF(
+        EXISTS (
+            SELECT 1 FROM information_schema.statistics
+            WHERE table_schema = DATABASE() AND table_name = 'inventory_item' AND index_name = 'idx_inventory_user_status_category'
+        ),
+        'DROP INDEX idx_inventory_user_status_category ON inventory_item',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @drop_index_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+CREATE INDEX idx_inventory_user_status_category ON inventory_item(user_id, status, category);
+SET @drop_index_sql = (
+    SELECT IF(
+        EXISTS (
+            SELECT 1 FROM information_schema.statistics
+            WHERE table_schema = DATABASE() AND table_name = 'inventory_item' AND index_name = 'idx_trade_user_status_sell_time'
+        ),
+        'DROP INDEX idx_trade_user_status_sell_time ON inventory_item',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @drop_index_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+CREATE INDEX idx_trade_user_status_sell_time ON inventory_item(user_id, status, sell_time DESC, updated_at DESC);
+SET @drop_index_sql = (
+    SELECT IF(
+        EXISTS (
+            SELECT 1 FROM information_schema.statistics
+            WHERE table_schema = DATABASE() AND table_name = 'inventory_item' AND index_name = 'idx_trade_user_status_profit'
+        ),
+        'DROP INDEX idx_trade_user_status_profit ON inventory_item',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @drop_index_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+CREATE INDEX idx_trade_user_status_profit ON inventory_item(user_id, status, profit_amount DESC, sell_time DESC);
+SET @drop_index_sql = (
+    SELECT IF(
+        EXISTS (
+            SELECT 1 FROM information_schema.statistics
+            WHERE table_schema = DATABASE() AND table_name = 'inventory_item' AND index_name = 'idx_trade_user_status_category'
+        ),
+        'DROP INDEX idx_trade_user_status_category ON inventory_item',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @drop_index_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+CREATE INDEX idx_trade_user_status_category ON inventory_item(user_id, status, category);
 
 CREATE TABLE IF NOT EXISTS public_post (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -209,6 +293,76 @@ PREPARE stmt FROM @drop_index_sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 CREATE INDEX idx_public_post_category ON public_post(category);
+SET @drop_index_sql = (
+    SELECT IF(
+        EXISTS (
+            SELECT 1 FROM information_schema.statistics
+            WHERE table_schema = DATABASE() AND table_name = 'public_post' AND index_name = 'idx_public_post_trade_feed'
+        ),
+        'DROP INDEX idx_public_post_trade_feed ON public_post',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @drop_index_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+CREATE INDEX idx_public_post_trade_feed ON public_post(trade_time DESC, created_at DESC);
+SET @drop_index_sql = (
+    SELECT IF(
+        EXISTS (
+            SELECT 1 FROM information_schema.statistics
+            WHERE table_schema = DATABASE() AND table_name = 'public_post' AND index_name = 'idx_public_post_price_feed'
+        ),
+        'DROP INDEX idx_public_post_price_feed ON public_post',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @drop_index_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+CREATE INDEX idx_public_post_price_feed ON public_post(price DESC, created_at DESC);
+SET @drop_index_sql = (
+    SELECT IF(
+        EXISTS (
+            SELECT 1 FROM information_schema.statistics
+            WHERE table_schema = DATABASE() AND table_name = 'public_post' AND index_name = 'idx_public_post_filters_trade'
+        ),
+        'DROP INDEX idx_public_post_filters_trade ON public_post',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @drop_index_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+CREATE INDEX idx_public_post_filters_trade ON public_post(category, direction, channel, trade_time DESC, created_at DESC);
+SET @drop_index_sql = (
+    SELECT IF(
+        EXISTS (
+            SELECT 1 FROM information_schema.statistics
+            WHERE table_schema = DATABASE() AND table_name = 'public_post' AND index_name = 'idx_public_post_filters_price'
+        ),
+        'DROP INDEX idx_public_post_filters_price ON public_post',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @drop_index_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+CREATE INDEX idx_public_post_filters_price ON public_post(category, direction, channel, price DESC, created_at DESC);
+SET @drop_index_sql = (
+    SELECT IF(
+        EXISTS (
+            SELECT 1 FROM information_schema.statistics
+            WHERE table_schema = DATABASE() AND table_name = 'public_post' AND index_name = 'idx_public_post_user_trade'
+        ),
+        'DROP INDEX idx_public_post_user_trade ON public_post',
+        'SELECT 1'
+    )
+);
+PREPARE stmt FROM @drop_index_sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+CREATE INDEX idx_public_post_user_trade ON public_post(user_id, trade_time DESC, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS public_post_flag (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,

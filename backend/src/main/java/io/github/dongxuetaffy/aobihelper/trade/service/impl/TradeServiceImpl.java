@@ -2,6 +2,7 @@ package io.github.dongxuetaffy.aobihelper.trade.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import io.github.dongxuetaffy.aobihelper.common.constant.BusinessCode;
@@ -10,6 +11,8 @@ import io.github.dongxuetaffy.aobihelper.common.guard.service.OperationGuardServ
 import io.github.dongxuetaffy.aobihelper.inventory.entity.InventoryItem;
 import io.github.dongxuetaffy.aobihelper.inventory.mapper.InventoryItemMapper;
 import io.github.dongxuetaffy.aobihelper.publiczone.entity.PublicPost;
+import io.github.dongxuetaffy.aobihelper.publiczone.entity.PublicPostFlag;
+import io.github.dongxuetaffy.aobihelper.publiczone.dto.SourceItemPublicToggleCommand;
 import io.github.dongxuetaffy.aobihelper.publiczone.mapper.PublicPostFlagMapper;
 import io.github.dongxuetaffy.aobihelper.publiczone.mapper.PublicPostMapper;
 import io.github.dongxuetaffy.aobihelper.publiczone.service.PublicPostService;
@@ -32,8 +35,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -143,7 +148,7 @@ public class TradeServiceImpl extends ServiceImpl<InventoryItemMapper, Inventory
         item.setUpdatedAt(now);
         inventoryItemMapper.insert(item);
 
-        updateUserStatsAfterCreate(userId);
+        updateUserStatsAfterCreate(item);
         return new TradeIdVO(item.getId());
     }
 
@@ -158,6 +163,7 @@ public class TradeServiceImpl extends ServiceImpl<InventoryItemMapper, Inventory
 
         BigDecimal oldBuyPrice = item.getBuyPrice();
         BigDecimal oldSellPrice = item.getSellPrice();
+        BigDecimal oldProfitAmount = item.getProfitAmount();
 
         item.setItemName(normalizeRequiredText(request.getItemName()));
         item.setBuyPrice(request.getBuyPrice());
@@ -174,7 +180,7 @@ public class TradeServiceImpl extends ServiceImpl<InventoryItemMapper, Inventory
         inventoryItemMapper.updateById(item);
 
         if (!oldBuyPrice.equals(request.getBuyPrice()) || !oldSellPrice.equals(request.getSellPrice())) {
-            updateUserStatsAfterUpdate(userId);
+            updateUserStatsAfterUpdate(item, oldBuyPrice, oldSellPrice, oldProfitAmount);
         }
         return new TradeIdVO(item.getId());
     }
@@ -186,7 +192,7 @@ public class TradeServiceImpl extends ServiceImpl<InventoryItemMapper, Inventory
         InventoryItem item = getOwnedSoldItem(userId, itemId);
         cleanupLinkedPublicPosts(item);
         inventoryItemMapper.deleteById(item.getId());
-        updateUserStatsAfterDelete(userId);
+        updateUserStatsAfterDelete(item);
     }
 
     @Override
@@ -210,29 +216,24 @@ public class TradeServiceImpl extends ServiceImpl<InventoryItemMapper, Inventory
     @Transactional
     public void batchDeleteTradeItems(Long userId, TradeBatchDeleteRequest request) {
         List<Long> itemIds = normalizeIds(request.getIds());
-        for (int index = 0; index < itemIds.size(); index++) {
-            deleteTrade(userId, itemIds.get(index), buildBatchRequestId(request.getRequestId(), "batchDeleteTrade", itemIds.get(index), index));
-        }
+        String batchRequestId = buildBatchRequestId(request.getRequestId(), "batchDeleteTrade", itemIds.get(0), 0);
+        operationGuardService.assertMutationAllowed(userId, "deleteTrade", batchRequestId);
+        List<InventoryItem> items = getOwnedSoldItems(userId, itemIds);
+        cleanupLinkedPublicPosts(items);
+        inventoryItemMapper.delete(new LambdaQueryWrapper<InventoryItem>().in(InventoryItem::getId, itemIds));
+        updateUserStatsAfterBatchDelete(userId, items);
     }
 
     @Override
     @Transactional
     public void batchTogglePublic(Long userId, TradeBatchTogglePublicRequest request) {
         List<Long> itemIds = normalizeIds(request.getIds());
-        for (int index = 0; index < itemIds.size(); index++) {
-            Long itemId = itemIds.get(index);
-            InventoryItem item = getOwnedSoldItem(userId, itemId);
-            publicPostService.toggleSourceItemPublicPost(
-                userId,
-                item.getId(),
-                item.getSellPrice() != null ? item.getSellPrice() : item.getBuyPrice(),
-                item.getSellTime() != null ? item.getSellTime() : item.getBuyTime(),
-                item.getProfitAmount() != null && item.getProfitAmount().compareTo(BigDecimal.ZERO) >= 0 ? "sell" : "buy",
-                item.getRemark(),
-                item.getImageFileId(),
-                buildBatchRequestId(request.getRequestId(), "batchToggleTradePublic", itemId, index)
-            );
-        }
+        List<InventoryItem> items = getOwnedSoldItems(userId, itemIds);
+        List<SourceItemPublicToggleCommand> commands = items.stream()
+            .map(this::buildTradePublicToggleCommand)
+            .toList();
+        String batchRequestId = buildBatchRequestId(request.getRequestId(), "batchToggleTradePublic", itemIds.get(0), 0);
+        publicPostService.batchToggleSourceItemPublicPosts(userId, commands, batchRequestId);
     }
 
     private void applyScopeFilter(LambdaQueryWrapper<InventoryItem> wrapper, String scope) {
@@ -265,32 +266,89 @@ public class TradeServiceImpl extends ServiceImpl<InventoryItemMapper, Inventory
         wrapper.orderByDesc(InventoryItem::getSellTime).orderByDesc(InventoryItem::getUpdatedAt);
     }
 
-    private TradeSummaryVO calculateSummary(Long userId, String keyword, String scope, String category) {
-        TradeSummaryVO summary = new TradeSummaryVO();
-        if (category != null) {
-            // 分类筛选时，所有金额都过滤该分类
-            summary.setTotalBuyAmount(sumByScopeAndCategory(userId, scope, keyword, category, "COALESCE(SUM(buy_price), 0)"));
-            summary.setTotalSellAmount(sumByScopeAndCategory(userId, scope, keyword, category, "COALESCE(SUM(sell_price), 0)"));
-            summary.setTotalProfit(sumByScopeAndCategory(userId, scope, keyword, category, "COALESCE(SUM(CASE WHEN profit_amount > 0 THEN profit_amount ELSE 0 END), 0)"));
-            summary.setTotalLoss(sumByScopeAndCategory(userId, scope, keyword, category, "COALESCE(SUM(CASE WHEN profit_amount < 0 THEN ABS(profit_amount) ELSE 0 END), 0)"));
-            // obi/magic 也随 category 过滤（选中某分类时，该分类有值，另一个分类为0）
-            summary.setObiCount(countByScopeAndCategory(userId, scope, keyword, CATEGORY_OBI));
-            summary.setObiBuyAmount(sumByScopeAndCategory(userId, scope, keyword, CATEGORY_OBI, "COALESCE(SUM(buy_price), 0)"));
-            summary.setMagicCount(countByScopeAndCategory(userId, scope, keyword, CATEGORY_MAGIC));
-            summary.setMagicBuyAmount(sumByScopeAndCategory(userId, scope, keyword, CATEGORY_MAGIC, "COALESCE(SUM(buy_price), 0)"));
-        } else {
-            // 全量（不过滤分类）
-            summary.setTotalBuyAmount(sumByScope(userId, scope, keyword, "COALESCE(SUM(buy_price), 0)"));
-            summary.setTotalSellAmount(sumByScope(userId, scope, keyword, "COALESCE(SUM(sell_price), 0)"));
-            summary.setTotalProfit(sumByScope(userId, scope, keyword, "COALESCE(SUM(CASE WHEN profit_amount > 0 THEN profit_amount ELSE 0 END), 0)"));
-            summary.setTotalLoss(sumByScope(userId, scope, keyword, "COALESCE(SUM(CASE WHEN profit_amount < 0 THEN ABS(profit_amount) ELSE 0 END), 0)"));
-            // obi/magic 各自全量分类小计
-            summary.setObiCount(countByScopeAndCategory(userId, scope, keyword, CATEGORY_OBI));
-            summary.setObiBuyAmount(sumByScopeAndCategory(userId, scope, keyword, CATEGORY_OBI, "COALESCE(SUM(buy_price), 0)"));
-            summary.setMagicCount(countByScopeAndCategory(userId, scope, keyword, CATEGORY_MAGIC));
-            summary.setMagicBuyAmount(sumByScopeAndCategory(userId, scope, keyword, CATEGORY_MAGIC, "COALESCE(SUM(buy_price), 0)"));
+    private SourceItemPublicToggleCommand buildTradePublicToggleCommand(InventoryItem item) {
+        return new SourceItemPublicToggleCommand(
+            item.getId(),
+            item.getSellPrice() != null ? item.getSellPrice() : item.getBuyPrice(),
+            item.getSellTime() != null ? item.getSellTime() : item.getBuyTime(),
+            resolveTradePublicDirection(item),
+            item.getRemark(),
+            item.getImageFileId()
+        );
+    }
+
+    private String resolveTradePublicDirection(InventoryItem item) {
+        if (item.getProfitAmount() != null && item.getProfitAmount().compareTo(BigDecimal.ZERO) >= 0) {
+            return "sell";
         }
+        return "buy";
+    }
+
+    private TradeSummaryVO calculateSummary(Long userId, String keyword, String scope, String category) {
+        String obiCondition = buildCategoryCondition(CATEGORY_OBI);
+        String magicCondition = buildCategoryCondition(CATEGORY_MAGIC);
+        QueryWrapper<InventoryItem> wrapper = new QueryWrapper<>();
+        wrapper.select(
+            buildSumExpression("buy_price", category, false, "total_buy_amount"),
+            buildSumExpression("sell_price", category, false, "total_sell_amount"),
+            buildSumExpression("profit_amount", category, true, "total_profit"),
+            buildLossExpression(category, "total_loss"),
+            "COALESCE(SUM(CASE WHEN " + obiCondition + " THEN 1 ELSE 0 END), 0) AS obi_count",
+            "COALESCE(SUM(CASE WHEN " + obiCondition + " THEN buy_price ELSE 0 END), 0) AS obi_buy_amount",
+            "COALESCE(SUM(CASE WHEN " + magicCondition + " THEN 1 ELSE 0 END), 0) AS magic_count",
+            "COALESCE(SUM(CASE WHEN " + magicCondition + " THEN buy_price ELSE 0 END), 0) AS magic_buy_amount"
+        );
+        wrapper.eq("user_id", userId).eq("status", STATUS_SOLD);
+        if (keyword != null) {
+            wrapper.like("item_name", keyword);
+        }
+        if (SCOPE_PROFIT.equals(scope)) {
+            wrapper.apply("profit_amount > 0");
+        } else if (SCOPE_LOSS.equals(scope)) {
+            wrapper.apply("profit_amount < 0");
+        }
+
+        List<Map<String, Object>> rows = inventoryItemMapper.selectMaps(wrapper);
+        Map<String, Object> row = rows.isEmpty() ? Map.of() : rows.get(0);
+
+        TradeSummaryVO summary = new TradeSummaryVO();
+        summary.setTotalBuyAmount(readBigDecimal(row, "total_buy_amount"));
+        summary.setTotalSellAmount(readBigDecimal(row, "total_sell_amount"));
+        summary.setTotalProfit(readBigDecimal(row, "total_profit"));
+        summary.setTotalLoss(readBigDecimal(row, "total_loss"));
+        summary.setObiCount(readInteger(row, "obi_count"));
+        summary.setObiBuyAmount(readBigDecimal(row, "obi_buy_amount"));
+        summary.setMagicCount(readInteger(row, "magic_count"));
+        summary.setMagicBuyAmount(readBigDecimal(row, "magic_buy_amount"));
         return summary;
+    }
+
+    private String buildSumExpression(String column, String category, boolean positiveOnly, String alias) {
+        String valueExpression = positiveOnly
+            ? "CASE WHEN " + column + " > 0 THEN " + column + " ELSE 0 END"
+            : column;
+        if (category == null) {
+            return "COALESCE(SUM(" + valueExpression + "), 0) AS " + alias;
+        }
+        return "COALESCE(SUM(CASE WHEN " + buildCategoryCondition(category) + " THEN " + valueExpression + " ELSE 0 END), 0) AS " + alias;
+    }
+
+    private String buildLossExpression(String category, String alias) {
+        String valueExpression = "CASE WHEN profit_amount < 0 THEN ABS(profit_amount) ELSE 0 END";
+        if (category == null) {
+            return "COALESCE(SUM(" + valueExpression + "), 0) AS " + alias;
+        }
+        return "COALESCE(SUM(CASE WHEN " + buildCategoryCondition(category) + " THEN " + valueExpression + " ELSE 0 END), 0) AS " + alias;
+    }
+
+    private String buildCategoryCondition(String category) {
+        if (CATEGORY_OBI.equals(category)) {
+            return "category = '" + CATEGORY_OBI + "'";
+        }
+        if (CATEGORY_MAGIC.equals(category)) {
+            return "category = '" + CATEGORY_MAGIC + "'";
+        }
+        throw new BusinessException(BusinessCode.PARAM_INVALID, "Unsupported category");
     }
 
     private BigDecimal toBigDecimal(Object value) {
@@ -303,8 +361,46 @@ public class TradeServiceImpl extends ServiceImpl<InventoryItemMapper, Inventory
         return new BigDecimal(value.toString());
     }
 
+    private BigDecimal readBigDecimal(Map<String, Object> row, String key) {
+        return toBigDecimal(row.get(key));
+    }
+
+    private int readInteger(Map<String, Object> row, String key) {
+        Object raw = row.get(key);
+        if (raw == null) {
+            return 0;
+        }
+        if (raw instanceof Number value) {
+            return value.intValue();
+        }
+        return new BigDecimal(raw.toString()).intValue();
+    }
+
     private InventoryItem getOwnedSoldItem(Long userId, Long itemId) {
         InventoryItem item = inventoryItemMapper.selectById(itemId);
+        assertOwnedSoldItem(userId, item);
+        return item;
+    }
+
+    private List<InventoryItem> getOwnedSoldItems(Long userId, List<Long> itemIds) {
+        List<InventoryItem> fetchedItems = inventoryItemMapper.selectList(
+            new LambdaQueryWrapper<InventoryItem>().in(InventoryItem::getId, itemIds)
+        );
+        Map<Long, InventoryItem> itemById = new HashMap<>();
+        for (InventoryItem item : fetchedItems) {
+            itemById.put(item.getId(), item);
+        }
+
+        List<InventoryItem> orderedItems = new ArrayList<>(itemIds.size());
+        for (Long itemId : itemIds) {
+            InventoryItem item = itemById.get(itemId);
+            assertOwnedSoldItem(userId, item);
+            orderedItems.add(item);
+        }
+        return orderedItems;
+    }
+
+    private void assertOwnedSoldItem(Long userId, InventoryItem item) {
         if (item == null) {
             throw new BusinessException(BusinessCode.RECORD_NOT_FOUND, "Trade item not found");
         }
@@ -314,7 +410,6 @@ public class TradeServiceImpl extends ServiceImpl<InventoryItemMapper, Inventory
         if (!STATUS_SOLD.equals(item.getStatus())) {
             throw new BusinessException(BusinessCode.STATE_INVALID, "Only sold items can be accessed here");
         }
-        return item;
     }
 
     private void validateUpsertRequest(TradeUpsertRequest request) {
@@ -425,31 +520,142 @@ public class TradeServiceImpl extends ServiceImpl<InventoryItemMapper, Inventory
     }
 
     private void cleanupLinkedPublicPosts(InventoryItem item) {
+        cleanupLinkedPublicPosts(List.of(item));
+    }
+
+    private void cleanupLinkedPublicPosts(List<InventoryItem> items) {
+        if (items.isEmpty()) {
+            return;
+        }
+        List<Long> itemIds = items.stream().map(InventoryItem::getId).toList();
         List<PublicPost> linkedPosts = publicPostMapper.selectList(
             new LambdaQueryWrapper<PublicPost>()
-                .eq(PublicPost::getSourceInventoryItemId, item.getId())
+                .in(PublicPost::getSourceInventoryItemId, itemIds)
         );
-        List<Long> postIds = new ArrayList<>(linkedPosts.stream().map(PublicPost::getId).toList());
-        if (item.getPublicPostId() != null && !postIds.contains(item.getPublicPostId())) {
-            postIds.add(item.getPublicPostId());
+        Set<Long> postIds = new LinkedHashSet<>(linkedPosts.stream().map(PublicPost::getId).toList());
+        for (InventoryItem item : items) {
+            if (item.getPublicPostId() != null) {
+                postIds.add(item.getPublicPostId());
+            }
         }
         if (postIds.isEmpty()) {
             return;
         }
-        publicPostFlagMapper.delete(new QueryWrapper<io.github.dongxuetaffy.aobihelper.publiczone.entity.PublicPostFlag>().in("post_id", postIds));
+        publicPostFlagMapper.delete(new QueryWrapper<PublicPostFlag>().in("post_id", postIds));
         publicPostMapper.delete(new QueryWrapper<PublicPost>().in("id", postIds));
     }
 
-    private void updateUserStatsAfterCreate(Long userId) {
-        recalculateUserStats(userId);
+    private void updateUserStatsAfterCreate(InventoryItem item) {
+        int updated = incrementUserStatsAfterCreate(item);
+        if (updated == 0) {
+            recalculateUserStats(item.getUserId());
+        }
     }
 
-    private void updateUserStatsAfterUpdate(Long userId) {
-        recalculateUserStats(userId);
+    private void updateUserStatsAfterUpdate(
+        InventoryItem item,
+        BigDecimal oldBuyPrice,
+        BigDecimal oldSellPrice,
+        BigDecimal oldProfitAmount
+    ) {
+        int updated = incrementUserStatsAfterUpdate(item, oldBuyPrice, oldSellPrice, oldProfitAmount);
+        if (updated == 0) {
+            recalculateUserStats(item.getUserId());
+        }
     }
 
-    private void updateUserStatsAfterDelete(Long userId) {
-        recalculateUserStats(userId);
+    private void updateUserStatsAfterDelete(InventoryItem item) {
+        int updated = incrementUserStatsAfterDelete(item);
+        if (updated == 0) {
+            recalculateUserStats(item.getUserId());
+        }
+    }
+
+    private void updateUserStatsAfterBatchDelete(Long userId, List<InventoryItem> items) {
+        int updated = incrementUserStatsAfterBatchDelete(userId, items);
+        if (updated == 0) {
+            recalculateUserStats(userId);
+        }
+    }
+
+    private int incrementUserStatsAfterCreate(InventoryItem item) {
+        return userStatsMapper.update(
+            null,
+            new LambdaUpdateWrapper<UserStats>()
+                .eq(UserStats::getUserId, item.getUserId())
+                .setIncrBy(UserStats::getSoldCount, 1)
+                .setIncrBy(UserStats::getSoldBuyTotal, item.getBuyPrice())
+                .setIncrBy(UserStats::getSoldSellTotal, item.getSellPrice())
+                .setIncrBy(UserStats::getTotalProfit, positiveProfit(item.getProfitAmount()))
+                .setIncrBy(UserStats::getTotalLoss, absoluteLoss(item.getProfitAmount()))
+                .set(UserStats::getUpdatedAt, LocalDateTime.now())
+        );
+    }
+
+    private int incrementUserStatsAfterUpdate(
+        InventoryItem item,
+        BigDecimal oldBuyPrice,
+        BigDecimal oldSellPrice,
+        BigDecimal oldProfitAmount
+    ) {
+        BigDecimal buyDelta = item.getBuyPrice().subtract(oldBuyPrice);
+        BigDecimal sellDelta = item.getSellPrice().subtract(oldSellPrice);
+        BigDecimal profitDelta = positiveProfit(item.getProfitAmount()).subtract(positiveProfit(oldProfitAmount));
+        BigDecimal lossDelta = absoluteLoss(item.getProfitAmount()).subtract(absoluteLoss(oldProfitAmount));
+
+        return userStatsMapper.update(
+            null,
+            new LambdaUpdateWrapper<UserStats>()
+                .eq(UserStats::getUserId, item.getUserId())
+                .setIncrBy(UserStats::getSoldBuyTotal, buyDelta)
+                .setIncrBy(UserStats::getSoldSellTotal, sellDelta)
+                .setIncrBy(UserStats::getTotalProfit, profitDelta)
+                .setIncrBy(UserStats::getTotalLoss, lossDelta)
+                .set(UserStats::getUpdatedAt, LocalDateTime.now())
+        );
+    }
+
+    private int incrementUserStatsAfterDelete(InventoryItem item) {
+        return incrementUserStatsAfterBatchDelete(item.getUserId(), List.of(item));
+    }
+
+    private int incrementUserStatsAfterBatchDelete(Long userId, List<InventoryItem> items) {
+        BigDecimal buyTotal = BigDecimal.ZERO;
+        BigDecimal sellTotal = BigDecimal.ZERO;
+        BigDecimal profitTotal = BigDecimal.ZERO;
+        BigDecimal lossTotal = BigDecimal.ZERO;
+        for (InventoryItem item : items) {
+            buyTotal = buyTotal.add(item.getBuyPrice());
+            sellTotal = sellTotal.add(item.getSellPrice());
+            profitTotal = profitTotal.add(positiveProfit(item.getProfitAmount()));
+            lossTotal = lossTotal.add(absoluteLoss(item.getProfitAmount()));
+        }
+
+        return userStatsMapper.update(
+            null,
+            new LambdaUpdateWrapper<UserStats>()
+                .eq(UserStats::getUserId, userId)
+                .setIncrBy(UserStats::getSoldCount, -items.size())
+                .setIncrBy(UserStats::getSoldBuyTotal, buyTotal.negate())
+                .setIncrBy(UserStats::getSoldSellTotal, sellTotal.negate())
+                .setIncrBy(UserStats::getTotalProfit, profitTotal.negate())
+                .setIncrBy(UserStats::getTotalLoss, lossTotal.negate())
+                .set(UserStats::getUpdatedAt, LocalDateTime.now())
+        );
+    }
+
+    private BigDecimal positiveProfit(BigDecimal profitAmount) {
+        if (profitAmount == null || profitAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return profitAmount;
+    }
+
+    private BigDecimal absoluteLoss(BigDecimal profitAmount) {
+        if (profitAmount == null || profitAmount.compareTo(BigDecimal.ZERO) >= 0) {
+            return BigDecimal.ZERO;
+        }
+        return profitAmount.abs();
     }
 
     private void recalculateUserStats(Long userId) {
@@ -475,30 +681,6 @@ public class TradeServiceImpl extends ServiceImpl<InventoryItemMapper, Inventory
         }
     }
 
-    private BigDecimal sumByScope(Long userId, String scope, String keyword, String sqlExpr) {
-        QueryWrapper<InventoryItem> wrapper = new QueryWrapper<>();
-        wrapper.select(sqlExpr);
-        wrapper.eq("user_id", userId).eq("status", STATUS_SOLD);
-        if (keyword != null) {
-            wrapper.like("item_name", keyword);
-        }
-        applyScopeCondition(wrapper, scope);
-        List<Object> results = inventoryItemMapper.selectObjs(wrapper);
-        return results.isEmpty() ? BigDecimal.ZERO : toBigDecimal(results.get(0));
-    }
-
-    private BigDecimal sumByScopeAndCategory(Long userId, String scope, String keyword, String category, String sqlExpr) {
-        QueryWrapper<InventoryItem> wrapper = new QueryWrapper<>();
-        wrapper.select(sqlExpr);
-        wrapper.eq("user_id", userId).eq("status", STATUS_SOLD).eq("category", category);
-        if (keyword != null) {
-            wrapper.like("item_name", keyword);
-        }
-        applyScopeCondition(wrapper, scope);
-        List<Object> results = inventoryItemMapper.selectObjs(wrapper);
-        return results.isEmpty() ? BigDecimal.ZERO : toBigDecimal(results.get(0));
-    }
-
     private BigDecimal sumByStatus(Long userId, String status, String sqlExpr) {
         QueryWrapper<InventoryItem> wrapper = new QueryWrapper<>();
         wrapper.select(sqlExpr);
@@ -515,24 +697,6 @@ public class TradeServiceImpl extends ServiceImpl<InventoryItemMapper, Inventory
                     .eq(InventoryItem::getStatus, status)
             )
         );
-    }
-
-    private int countByScopeAndCategory(Long userId, String scope, String keyword, String category) {
-        QueryWrapper<InventoryItem> wrapper = new QueryWrapper<>();
-        wrapper.eq("user_id", userId).eq("status", STATUS_SOLD).eq("category", category);
-        if (keyword != null) {
-            wrapper.like("item_name", keyword);
-        }
-        applyScopeCondition(wrapper, scope);
-        return Math.toIntExact(inventoryItemMapper.selectCount(wrapper));
-    }
-
-    private void applyScopeCondition(QueryWrapper<InventoryItem> wrapper, String scope) {
-        if (SCOPE_PROFIT.equals(scope)) {
-            wrapper.apply("profit_amount > 0");
-        } else if (SCOPE_LOSS.equals(scope)) {
-            wrapper.apply("profit_amount < 0");
-        }
     }
 
     private TradeListItemVO toListItem(InventoryItem item) {

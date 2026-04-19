@@ -23,6 +23,8 @@ import io.github.dongxuetaffy.aobihelper.inventory.vo.InventoryPageResponseVO;
 import io.github.dongxuetaffy.aobihelper.inventory.vo.InventorySummaryVO;
 import io.github.dongxuetaffy.aobihelper.inventory.vo.InventoryTogglePublicVO;
 import io.github.dongxuetaffy.aobihelper.publiczone.entity.PublicPost;
+import io.github.dongxuetaffy.aobihelper.publiczone.entity.PublicPostFlag;
+import io.github.dongxuetaffy.aobihelper.publiczone.dto.SourceItemPublicToggleCommand;
 import io.github.dongxuetaffy.aobihelper.publiczone.mapper.PublicPostFlagMapper;
 import io.github.dongxuetaffy.aobihelper.publiczone.mapper.PublicPostMapper;
 import io.github.dongxuetaffy.aobihelper.publiczone.service.PublicPostService;
@@ -31,10 +33,11 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -85,7 +88,7 @@ public class InventoryItemServiceImpl extends ServiceImpl<InventoryItemMapper, I
 
         Page<InventoryItem> resultPage = baseMapper.selectPage(page, pageWrapper);
 
-        InventorySummaryVO summary = calculateSummary(userId, keyword, priceRange, category);
+        InventorySummaryVO summary = calculateSummary(userId, keyword, priceRange);
 
         InventoryPageResponseVO response = new InventoryPageResponseVO();
         response.setItems(resultPage.getRecords().stream().map(this::toListItem).toList());
@@ -202,30 +205,26 @@ public class InventoryItemServiceImpl extends ServiceImpl<InventoryItemMapper, I
     @Transactional
     public void batchDeleteInventoryItems(Long userId, InventoryBatchDeleteRequest request) {
         List<Long> itemIds = normalizeIds(request.getIds());
-        for (int index = 0; index < itemIds.size(); index++) {
-            deleteInventoryItem(userId, itemIds.get(index), buildBatchRequestId(request.getRequestId(), "batchDeleteInventory", itemIds.get(index), index));
-        }
+        String batchRequestId = buildBatchRequestId(request.getRequestId(), "batchDeleteInventory", itemIds.get(0), 0);
+        operationGuardService.assertMutationAllowed(userId, "deleteInventoryItem", batchRequestId);
+        List<InventoryItem> items = getOwnedInventoryItems(userId, itemIds);
+        cleanupLinkedPublicPosts(items);
+        baseMapper.delete(new LambdaQueryWrapper<InventoryItem>().in(InventoryItem::getId, itemIds));
     }
 
     @Override
     @Transactional
     public void batchTogglePublic(Long userId, InventoryBatchTogglePublicRequest request) {
         List<Long> itemIds = normalizeIds(request.getIds());
-        for (int index = 0; index < itemIds.size(); index++) {
-            Long itemId = itemIds.get(index);
-            InventoryItem item = getOwnedInventoryItem(userId, itemId);
+        List<InventoryItem> items = getOwnedInventoryItems(userId, itemIds);
+        for (InventoryItem item : items) {
             ensureUnsold(item, "Only unsold inventory items can be toggled here");
-            publicPostService.toggleSourceItemPublicPost(
-                userId,
-                item.getId(),
-                item.getBuyPrice(),
-                item.getBuyTime(),
-                "buy",
-                item.getRemark(),
-                item.getImageFileId(),
-                buildBatchRequestId(request.getRequestId(), "batchToggleInventoryPublic", itemId, index)
-            );
         }
+        List<SourceItemPublicToggleCommand> commands = items.stream()
+            .map(this::buildInventoryPublicToggleCommand)
+            .toList();
+        String batchRequestId = buildBatchRequestId(request.getRequestId(), "batchToggleInventoryPublic", itemIds.get(0), 0);
+        publicPostService.batchToggleSourceItemPublicPosts(userId, commands, batchRequestId);
     }
 
     private void applyWarehouseFilters(
@@ -256,27 +255,18 @@ public class InventoryItemServiceImpl extends ServiceImpl<InventoryItemMapper, I
         queryWrapper.orderByDesc(InventoryItem::getBuyTime).orderByDesc(InventoryItem::getCreatedAt);
     }
 
-    private InventorySummaryVO calculateSummary(Long userId, String keyword, PriceRange priceRange, String category) {
-        InventorySummaryVO summary = new InventorySummaryVO();
-        // 总买入价为全量不过滤分类
-        summary.setTotalBuyPrice(sumWarehouseBuyPrice(userId, keyword, priceRange, null));
-        // obi/magic 分类小计始终是全量分类值
-        summary.setObiCount(countWarehouseItems(userId, keyword, priceRange, CATEGORY_OBI));
-        summary.setObiBuyPrice(sumWarehouseBuyPrice(userId, keyword, priceRange, CATEGORY_OBI));
-        summary.setMagicCount(countWarehouseItems(userId, keyword, priceRange, CATEGORY_MAGIC));
-        summary.setMagicBuyPrice(sumWarehouseBuyPrice(userId, keyword, priceRange, CATEGORY_MAGIC));
-        return summary;
-    }
-
-    private BigDecimal sumWarehouseBuyPrice(Long userId, String keyword, PriceRange priceRange, String category) {
+    private InventorySummaryVO calculateSummary(Long userId, String keyword, PriceRange priceRange) {
         QueryWrapper<InventoryItem> summaryWrapper = new QueryWrapper<>();
-        summaryWrapper.select("COALESCE(SUM(buy_price), 0)");
+        summaryWrapper.select(
+            "COALESCE(SUM(buy_price), 0) AS total_buy_price",
+            "COALESCE(SUM(CASE WHEN category = '" + CATEGORY_OBI + "' THEN 1 ELSE 0 END), 0) AS obi_count",
+            "COALESCE(SUM(CASE WHEN category = '" + CATEGORY_OBI + "' THEN buy_price ELSE 0 END), 0) AS obi_buy_price",
+            "COALESCE(SUM(CASE WHEN category = '" + CATEGORY_MAGIC + "' THEN 1 ELSE 0 END), 0) AS magic_count",
+            "COALESCE(SUM(CASE WHEN category = '" + CATEGORY_MAGIC + "' THEN buy_price ELSE 0 END), 0) AS magic_buy_price"
+        );
         summaryWrapper.eq("user_id", userId).eq("status", STATUS_UNSOLD);
         if (keyword != null) {
             summaryWrapper.like("item_name", keyword);
-        }
-        if (category != null) {
-            summaryWrapper.eq("category", category);
         }
         if (priceRange != null) {
             if (priceRange.minPrice() != null) {
@@ -286,60 +276,110 @@ public class InventoryItemServiceImpl extends ServiceImpl<InventoryItemMapper, I
                 summaryWrapper.le("buy_price", priceRange.maxPrice());
             }
         }
-        List<Object> results = baseMapper.selectObjs(summaryWrapper);
-        if (results.isEmpty() || results.get(0) == null) {
+
+        List<Map<String, Object>> rows = baseMapper.selectMaps(summaryWrapper);
+        Map<String, Object> row = rows.isEmpty() ? Map.of() : rows.get(0);
+
+        InventorySummaryVO summary = new InventorySummaryVO();
+        summary.setTotalBuyPrice(readBigDecimal(row, "total_buy_price"));
+        summary.setObiCount(readInteger(row, "obi_count"));
+        summary.setObiBuyPrice(readBigDecimal(row, "obi_buy_price"));
+        summary.setMagicCount(readInteger(row, "magic_count"));
+        summary.setMagicBuyPrice(readBigDecimal(row, "magic_buy_price"));
+        return summary;
+    }
+
+    private SourceItemPublicToggleCommand buildInventoryPublicToggleCommand(InventoryItem item) {
+        return new SourceItemPublicToggleCommand(
+            item.getId(),
+            item.getBuyPrice(),
+            item.getBuyTime(),
+            "buy",
+            item.getRemark(),
+            item.getImageFileId()
+        );
+    }
+
+    private BigDecimal readBigDecimal(Map<String, Object> row, String key) {
+        Object raw = row.get(key);
+        if (raw == null) {
             return BigDecimal.ZERO;
         }
-        Object raw = results.get(0);
         if (raw instanceof BigDecimal value) {
             return value;
         }
         return new BigDecimal(raw.toString());
     }
 
-    private int countWarehouseItems(Long userId, String keyword, PriceRange priceRange, String category) {
-        QueryWrapper<InventoryItem> countWrapper = new QueryWrapper<>();
-        countWrapper.eq("user_id", userId).eq("status", STATUS_UNSOLD).eq("category", category);
-        if (keyword != null) {
-            countWrapper.like("item_name", keyword);
+    private int readInteger(Map<String, Object> row, String key) {
+        Object raw = row.get(key);
+        if (raw == null) {
+            return 0;
         }
-        if (priceRange != null) {
-            if (priceRange.minPrice() != null) {
-                countWrapper.ge("buy_price", priceRange.minPrice());
-            }
-            if (priceRange.maxPrice() != null) {
-                countWrapper.le("buy_price", priceRange.maxPrice());
-            }
+        if (raw instanceof Number value) {
+            return value.intValue();
         }
-        return Math.toIntExact(baseMapper.selectCount(countWrapper));
+        return new BigDecimal(raw.toString()).intValue();
     }
 
     private InventoryItem getOwnedInventoryItem(Long userId, Long itemId) {
         InventoryItem item = baseMapper.selectById(itemId);
+        assertOwnedInventoryItem(userId, item);
+        return item;
+    }
+
+    private List<InventoryItem> getOwnedInventoryItems(Long userId, List<Long> itemIds) {
+        List<InventoryItem> fetchedItems = baseMapper.selectList(
+            new LambdaQueryWrapper<InventoryItem>().in(InventoryItem::getId, itemIds)
+        );
+        Map<Long, InventoryItem> itemById = new HashMap<>();
+        for (InventoryItem item : fetchedItems) {
+            itemById.put(item.getId(), item);
+        }
+
+        List<InventoryItem> orderedItems = new ArrayList<>(itemIds.size());
+        for (Long itemId : itemIds) {
+            InventoryItem item = itemById.get(itemId);
+            assertOwnedInventoryItem(userId, item);
+            orderedItems.add(item);
+        }
+        return orderedItems;
+    }
+
+    private void assertOwnedInventoryItem(Long userId, InventoryItem item) {
         if (item == null) {
             throw new BusinessException(BusinessCode.RECORD_NOT_FOUND, "Inventory item not found");
         }
         if (!item.getUserId().equals(userId)) {
             throw new BusinessException(BusinessCode.FORBIDDEN, "You can only access your own inventory item");
         }
-        return item;
     }
 
     private void cleanupLinkedPublicPosts(InventoryItem item) {
+        cleanupLinkedPublicPosts(List.of(item));
+    }
+
+    private void cleanupLinkedPublicPosts(List<InventoryItem> items) {
+        if (items.isEmpty()) {
+            return;
+        }
+        List<Long> itemIds = items.stream().map(InventoryItem::getId).toList();
         List<PublicPost> linkedPosts = publicPostMapper.selectList(
             new LambdaQueryWrapper<PublicPost>()
-                .eq(PublicPost::getSourceInventoryItemId, item.getId())
+                .in(PublicPost::getSourceInventoryItemId, itemIds)
         );
 
-        List<Long> postIds = new ArrayList<>(linkedPosts.stream().map(PublicPost::getId).collect(Collectors.toList()));
-        if (item.getPublicPostId() != null && !postIds.contains(item.getPublicPostId())) {
-            postIds.add(item.getPublicPostId());
+        Set<Long> postIds = new LinkedHashSet<>(linkedPosts.stream().map(PublicPost::getId).toList());
+        for (InventoryItem item : items) {
+            if (item.getPublicPostId() != null) {
+                postIds.add(item.getPublicPostId());
+            }
         }
         if (postIds.isEmpty()) {
             return;
         }
 
-        publicPostFlagMapper.delete(new QueryWrapper<io.github.dongxuetaffy.aobihelper.publiczone.entity.PublicPostFlag>().in("post_id", postIds));
+        publicPostFlagMapper.delete(new QueryWrapper<PublicPostFlag>().in("post_id", postIds));
         publicPostMapper.delete(new QueryWrapper<PublicPost>().in("id", postIds));
     }
 

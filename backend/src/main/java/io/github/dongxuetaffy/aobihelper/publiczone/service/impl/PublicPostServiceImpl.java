@@ -2,6 +2,7 @@ package io.github.dongxuetaffy.aobihelper.publiczone.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import io.github.dongxuetaffy.aobihelper.auth.entity.UserAccount;
@@ -17,6 +18,7 @@ import io.github.dongxuetaffy.aobihelper.publiczone.dto.PublicPostCreateRequest;
 import io.github.dongxuetaffy.aobihelper.publiczone.dto.PublicPostPageQuery;
 import io.github.dongxuetaffy.aobihelper.publiczone.dto.PublicPostToggleUntrustedRequest;
 import io.github.dongxuetaffy.aobihelper.publiczone.dto.PublicPostUpdateRequest;
+import io.github.dongxuetaffy.aobihelper.publiczone.dto.SourceItemPublicToggleCommand;
 import io.github.dongxuetaffy.aobihelper.publiczone.entity.PublicPost;
 import io.github.dongxuetaffy.aobihelper.publiczone.entity.PublicPostFlag;
 import io.github.dongxuetaffy.aobihelper.publiczone.mapper.PublicPostFlagMapper;
@@ -31,8 +33,11 @@ import io.github.dongxuetaffy.aobihelper.publiczone.vo.PublicPostToggleUntrusted
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
@@ -321,6 +326,47 @@ public class PublicPostServiceImpl extends ServiceImpl<PublicPostMapper, PublicP
 
     @Override
     @Transactional
+    public void batchToggleSourceItemPublicPosts(
+        Long currentUserId,
+        List<SourceItemPublicToggleCommand> commands,
+        String requestId
+    ) {
+        operationGuardService.assertMutationAllowed(currentUserId, "toggleSourceItemPublicPost", requestId);
+        if (commands.isEmpty()) {
+            return;
+        }
+
+        List<Long> sourceItemIds = commands.stream().map(SourceItemPublicToggleCommand::sourceItemId).toList();
+        Map<Long, InventoryItem> itemById = getSourceItemsById(sourceItemIds);
+        List<InventoryItem> orderedItems = validateSourceItems(currentUserId, commands, itemById);
+        Map<Long, PublicPost> linkedPostByItemId = getOwnedLinkedSourcePosts(currentUserId, orderedItems);
+
+        UserAccount user = null;
+        List<Long> postIdsToDelete = new ArrayList<>();
+        for (int index = 0; index < commands.size(); index++) {
+            SourceItemPublicToggleCommand command = commands.get(index);
+            InventoryItem item = orderedItems.get(index);
+            PublicPost linkedPost = linkedPostByItemId.get(item.getId());
+            if (Boolean.TRUE.equals(item.getPublicPosted()) || linkedPost != null) {
+                if (linkedPost != null) {
+                    postIdsToDelete.add(linkedPost.getId());
+                }
+                clearSourceItemPublicState(item);
+                continue;
+            }
+
+            validatePostFields(command.tradeTime(), command.direction(), item.getChannel(), item.getCategory());
+            if (user == null) {
+                user = getRequiredUser(currentUserId);
+            }
+            createSourcePublicPost(currentUserId, item, command, user);
+        }
+
+        deleteLinkedPosts(postIdsToDelete);
+    }
+
+    @Override
+    @Transactional
     public void deletePublicPost(Long currentUserId, Long postId, String requestId) {
         operationGuardService.assertMutationAllowed(currentUserId, "deletePublicPost", requestId);
         PublicPost post = baseMapper.selectById(postId);
@@ -588,6 +634,123 @@ public class PublicPostServiceImpl extends ServiceImpl<PublicPostMapper, PublicP
         return user.getEmail();
     }
 
+    private UserAccount getRequiredUser(Long currentUserId) {
+        UserAccount user = userAccountMapper.selectById(currentUserId);
+        if (user == null) {
+            throw new BusinessException(BusinessCode.RECORD_NOT_FOUND, "User not found");
+        }
+        return user;
+    }
+
+    private Map<Long, InventoryItem> getSourceItemsById(List<Long> sourceItemIds) {
+        List<InventoryItem> items = inventoryItemMapper.selectList(
+            new LambdaQueryWrapper<InventoryItem>().in(InventoryItem::getId, sourceItemIds)
+        );
+        Map<Long, InventoryItem> itemById = new HashMap<>();
+        for (InventoryItem item : items) {
+            itemById.put(item.getId(), item);
+        }
+        return itemById;
+    }
+
+    private List<InventoryItem> validateSourceItems(
+        Long currentUserId,
+        List<SourceItemPublicToggleCommand> commands,
+        Map<Long, InventoryItem> itemById
+    ) {
+        List<InventoryItem> orderedItems = new ArrayList<>(commands.size());
+        for (SourceItemPublicToggleCommand command : commands) {
+            InventoryItem item = itemById.get(command.sourceItemId());
+            if (item == null) {
+                throw new BusinessException(BusinessCode.RECORD_NOT_FOUND, "Source item not found");
+            }
+            if (!item.getUserId().equals(currentUserId)) {
+                throw new BusinessException(BusinessCode.FORBIDDEN, "You can only operate your own source item");
+            }
+            orderedItems.add(item);
+        }
+        return orderedItems;
+    }
+
+    private Map<Long, PublicPost> getOwnedLinkedSourcePosts(Long currentUserId, List<InventoryItem> items) {
+        List<Long> sourceItemIds = items.stream().map(InventoryItem::getId).toList();
+        List<Long> publicPostIds = items.stream()
+            .map(InventoryItem::getPublicPostId)
+            .filter(id -> id != null)
+            .toList();
+
+        Map<Long, PublicPost> linkedPostByItemId = new HashMap<>();
+        if (!publicPostIds.isEmpty()) {
+            Map<Long, Long> itemIdByPublicPostId = new HashMap<>();
+            for (InventoryItem item : items) {
+                if (item.getPublicPostId() != null) {
+                    itemIdByPublicPostId.put(item.getPublicPostId(), item.getId());
+                }
+            }
+            List<PublicPost> posts = baseMapper.selectList(
+                new LambdaQueryWrapper<PublicPost>()
+                    .eq(PublicPost::getUserId, currentUserId)
+                    .in(PublicPost::getId, publicPostIds)
+            );
+            for (PublicPost post : posts) {
+                Long itemId = itemIdByPublicPostId.get(post.getId());
+                if (itemId != null) {
+                    linkedPostByItemId.put(itemId, post);
+                }
+            }
+        }
+
+        List<PublicPost> sourceLinkedPosts = baseMapper.selectList(
+            new LambdaQueryWrapper<PublicPost>()
+                .eq(PublicPost::getUserId, currentUserId)
+                .in(PublicPost::getSourceInventoryItemId, sourceItemIds)
+        );
+        for (PublicPost post : sourceLinkedPosts) {
+            linkedPostByItemId.putIfAbsent(post.getSourceInventoryItemId(), post);
+        }
+        return linkedPostByItemId;
+    }
+
+    private void createSourcePublicPost(
+        Long currentUserId,
+        InventoryItem item,
+        SourceItemPublicToggleCommand command,
+        UserAccount user
+    ) {
+        LocalDateTime now = LocalDateTime.now();
+        PublicPost post = new PublicPost();
+        post.setUserId(currentUserId);
+        post.setSourceInventoryItemId(item.getId());
+        post.setItemName(item.getItemName());
+        post.setPrice(command.price());
+        post.setTradeTime(command.tradeTime());
+        post.setDirection(command.direction());
+        post.setChannel(item.getChannel());
+        post.setCategory(item.getCategory());
+        post.setRemark(normalizeNullableText(command.remark()));
+        post.setImageFileId(preparePublicImageFile(currentUserId, resolveSourceImageFileId(item, command.imageFileId())));
+        post.setUntrustedCount(0);
+        post.setPublisherName(resolvePublisherName(user));
+        post.setPublisherAvatar(normalizeNullableText(user.getAvatarUrl()));
+        post.setCreatedAt(now);
+        post.setUpdatedAt(now);
+        baseMapper.insert(post);
+
+        item.setPublicPosted(Boolean.TRUE);
+        item.setPublicPostId(post.getId());
+        item.setPublicPostedAt(now);
+        item.setUpdatedAt(now);
+        inventoryItemMapper.updateById(item);
+    }
+
+    private void deleteLinkedPosts(List<Long> postIds) {
+        if (postIds.isEmpty()) {
+            return;
+        }
+        publicPostFlagMapper.delete(new QueryWrapper<PublicPostFlag>().in("post_id", postIds));
+        baseMapper.delete(new QueryWrapper<PublicPost>().in("id", postIds));
+    }
+
     private void rollbackSourceItemPublicState(PublicPost post, Long currentUserId) {
         if (post.getSourceInventoryItemId() == null) {
             return;
@@ -623,11 +786,20 @@ public class PublicPostServiceImpl extends ServiceImpl<PublicPostMapper, PublicP
     }
 
     private void clearSourceItemPublicState(InventoryItem item) {
+        LocalDateTime now = LocalDateTime.now();
         item.setPublicPosted(Boolean.FALSE);
         item.setPublicPostId(null);
         item.setPublicPostedAt(null);
-        item.setUpdatedAt(LocalDateTime.now());
-        inventoryItemMapper.updateById(item);
+        item.setUpdatedAt(now);
+        inventoryItemMapper.update(
+            null,
+            new LambdaUpdateWrapper<InventoryItem>()
+                .eq(InventoryItem::getId, item.getId())
+                .set(InventoryItem::getPublicPosted, Boolean.FALSE)
+                .set(InventoryItem::getPublicPostId, null)
+                .set(InventoryItem::getPublicPostedAt, null)
+                .set(InventoryItem::getUpdatedAt, now)
+        );
     }
 
     private Set<Long> getFlaggedPostIds(Long currentUserId, List<Long> postIds) {

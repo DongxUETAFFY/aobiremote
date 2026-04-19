@@ -9,17 +9,21 @@ import io.github.dongxuetaffy.aobihelper.file.mapper.FileAssetMapper;
 import io.github.dongxuetaffy.aobihelper.file.service.FileAssetService;
 import io.github.dongxuetaffy.aobihelper.file.vo.FileUploadVO;
 import java.io.IOException;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
@@ -28,13 +32,15 @@ public class FileAssetServiceImpl extends ServiceImpl<FileAssetMapper, FileAsset
     private static final Set<String> PUBLIC_SCENES = Set.of("public", "public-post");
 
     private final FileProperties fileProperties;
+    private final TransactionTemplate transactionTemplate;
+    private final ConcurrentMap<Long, PreviewMetadata> publicPreviewCache = new ConcurrentHashMap<>();
 
-    public FileAssetServiceImpl(FileProperties fileProperties) {
+    public FileAssetServiceImpl(FileProperties fileProperties, TransactionTemplate transactionTemplate) {
         this.fileProperties = fileProperties;
+        this.transactionTemplate = transactionTemplate;
     }
 
     @Override
-    @Transactional
     public FileUploadVO uploadImage(Long userId, String scene, MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new BusinessException(BusinessCode.PARAM_INVALID, "Image file is required");
@@ -59,21 +65,11 @@ public class FileAssetServiceImpl extends ServiceImpl<FileAssetMapper, FileAsset
         LocalDate today = LocalDate.now();
         String objectKey = userId + "/" + today + "/" + UUID.randomUUID() + resolveExtension(contentType);
         Path rootPath = Paths.get(fileProperties.getLocalRoot()).toAbsolutePath().normalize();
-        Path targetPath = rootPath.resolve(objectKey).normalize();
+        Path targetPath = resolveTargetPath(rootPath, objectKey);
+        storeImageFile(rootPath, targetPath, fileBytes, contentType);
 
-        if (!targetPath.startsWith(rootPath)) {
-            throw new BusinessException(BusinessCode.UPLOAD_FAILED, "Invalid upload target");
-        }
-
-        try {
-            Files.createDirectories(targetPath.getParent());
-            Files.write(targetPath, fileBytes);
-        } catch (IOException exception) {
-            throw new BusinessException(BusinessCode.UPLOAD_FAILED, "Failed to store image");
-        }
-
-        LocalDateTime now = LocalDateTime.now();
         FileAsset fileAsset = new FileAsset();
+        LocalDateTime now = LocalDateTime.now();
         fileAsset.setUserId(userId);
         fileAsset.setStorageProvider("local");
         fileAsset.setBucketName("local");
@@ -84,7 +80,12 @@ public class FileAssetServiceImpl extends ServiceImpl<FileAssetMapper, FileAsset
         fileAsset.setIsPublic(isPublic);
         fileAsset.setCreatedAt(now);
         fileAsset.setUpdatedAt(now);
-        baseMapper.insert(fileAsset);
+        try {
+            transactionTemplate.executeWithoutResult(status -> baseMapper.insert(fileAsset));
+        } catch (RuntimeException exception) {
+            deleteStoredFile(targetPath);
+            throw exception;
+        }
 
         FileUploadVO vo = new FileUploadVO();
         vo.setFileId(String.valueOf(fileAsset.getId()));
@@ -97,6 +98,11 @@ public class FileAssetServiceImpl extends ServiceImpl<FileAssetMapper, FileAsset
     @Override
     public FilePreviewResult loadPreview(Long currentUserId, String fileId) {
         Long parsedFileId = parseFileId(fileId);
+        PreviewMetadata cachedMetadata = publicPreviewCache.get(parsedFileId);
+        if (cachedMetadata != null) {
+            return loadCachedPublicPreview(cachedMetadata);
+        }
+
         FileAsset fileAsset = baseMapper.selectById(parsedFileId);
         if (fileAsset == null) {
             throw new BusinessException(BusinessCode.RECORD_NOT_FOUND, "Image not found");
@@ -111,12 +117,27 @@ public class FileAssetServiceImpl extends ServiceImpl<FileAssetMapper, FileAsset
             }
         }
 
-        Path filePath = Paths.get(fileProperties.getLocalRoot()).toAbsolutePath().normalize().resolve(fileAsset.getObjectKey()).normalize();
-        Resource resource = new FileSystemResource(filePath);
-        if (!resource.exists() || !resource.isReadable()) {
-            throw new BusinessException(BusinessCode.RECORD_NOT_FOUND, "Image file not found");
+        Resource resource = loadResource(fileAsset.getObjectKey(), parsedFileId);
+        if (Boolean.TRUE.equals(fileAsset.getIsPublic())) {
+            publicPreviewCache.put(parsedFileId, PreviewMetadata.from(fileAsset));
         }
         return new FilePreviewResult(fileAsset, resource);
+    }
+
+    private FilePreviewResult loadCachedPublicPreview(PreviewMetadata metadata) {
+        Resource resource = loadResource(metadata.objectKey(), metadata.id());
+        return new FilePreviewResult(metadata.toFileAsset(), resource);
+    }
+
+    private Resource loadResource(String objectKey, Long fileId) {
+        Path rootPath = Paths.get(fileProperties.getLocalRoot()).toAbsolutePath().normalize();
+        Path filePath = resolveTargetPath(rootPath, objectKey);
+        Resource resource = new FileSystemResource(filePath);
+        if (!resource.exists() || !resource.isReadable()) {
+            publicPreviewCache.remove(fileId);
+            throw new BusinessException(BusinessCode.RECORD_NOT_FOUND, "Image file not found");
+        }
+        return resource;
     }
 
     private Long parseFileId(String fileId) {
@@ -155,6 +176,47 @@ public class FileAssetServiceImpl extends ServiceImpl<FileAssetMapper, FileAsset
             case "image/webp" -> ".webp";
             default -> "";
         };
+    }
+
+    private Path resolveTargetPath(Path rootPath, String objectKey) {
+        Path targetPath = rootPath.resolve(objectKey).normalize();
+        if (!targetPath.startsWith(rootPath)) {
+            throw new BusinessException(BusinessCode.UPLOAD_FAILED, "Invalid file target");
+        }
+        return targetPath;
+    }
+
+    private void storeImageFile(Path rootPath, Path targetPath, byte[] fileBytes, String contentType) {
+        Path tempPath = rootPath.resolve(".tmp").resolve(UUID.randomUUID() + resolveExtension(contentType)).normalize();
+        if (!tempPath.startsWith(rootPath)) {
+            throw new BusinessException(BusinessCode.UPLOAD_FAILED, "Invalid temporary upload target");
+        }
+        try {
+            Files.createDirectories(tempPath.getParent());
+            Files.createDirectories(targetPath.getParent());
+            Files.write(tempPath, fileBytes);
+            moveTempFile(tempPath, targetPath);
+        } catch (IOException exception) {
+            deleteStoredFile(tempPath);
+            deleteStoredFile(targetPath);
+            throw new BusinessException(BusinessCode.UPLOAD_FAILED, "Failed to store image");
+        }
+    }
+
+    private void moveTempFile(Path tempPath, Path targetPath) throws IOException {
+        try {
+            Files.move(tempPath, targetPath, StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException exception) {
+            Files.move(tempPath, targetPath, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    private void deleteStoredFile(Path filePath) {
+        try {
+            Files.deleteIfExists(filePath);
+        } catch (IOException ignored) {
+            // Best-effort cleanup only; the request should surface the original failure.
+        }
     }
 
     private byte[] readFileBytes(MultipartFile file) {
@@ -199,5 +261,49 @@ public class FileAssetServiceImpl extends ServiceImpl<FileAssetMapper, FileAsset
             && bytes[9] == 'E'
             && bytes[10] == 'B'
             && bytes[11] == 'P';
+    }
+
+    private record PreviewMetadata(
+        Long id,
+        Long userId,
+        String storageProvider,
+        String bucketName,
+        String objectKey,
+        String originalName,
+        String contentType,
+        Long fileSize,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt
+    ) {
+        private static PreviewMetadata from(FileAsset fileAsset) {
+            return new PreviewMetadata(
+                fileAsset.getId(),
+                fileAsset.getUserId(),
+                fileAsset.getStorageProvider(),
+                fileAsset.getBucketName(),
+                fileAsset.getObjectKey(),
+                fileAsset.getOriginalName(),
+                fileAsset.getContentType(),
+                fileAsset.getFileSize(),
+                fileAsset.getCreatedAt(),
+                fileAsset.getUpdatedAt()
+            );
+        }
+
+        private FileAsset toFileAsset() {
+            FileAsset fileAsset = new FileAsset();
+            fileAsset.setId(id);
+            fileAsset.setUserId(userId);
+            fileAsset.setStorageProvider(storageProvider);
+            fileAsset.setBucketName(bucketName);
+            fileAsset.setObjectKey(objectKey);
+            fileAsset.setOriginalName(originalName);
+            fileAsset.setContentType(contentType);
+            fileAsset.setFileSize(fileSize);
+            fileAsset.setIsPublic(Boolean.TRUE);
+            fileAsset.setCreatedAt(createdAt);
+            fileAsset.setUpdatedAt(updatedAt);
+            return fileAsset;
+        }
     }
 }
