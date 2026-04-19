@@ -51,3 +51,4 @@ app:
   file:
     local-root: ./.local-data/uploads
     max-image-bytes: 614400
+    max-concurrent-image-stores: 20

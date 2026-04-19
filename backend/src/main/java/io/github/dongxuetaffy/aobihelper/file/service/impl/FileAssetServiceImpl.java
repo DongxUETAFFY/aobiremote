@@ -11,6 +11,7 @@ import io.github.dongxuetaffy.aobihelper.file.vo.FileUploadVO;
 import java.io.IOException;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
@@ -33,11 +34,13 @@ public class FileAssetServiceImpl extends ServiceImpl<FileAssetMapper, FileAsset
 
     private final FileProperties fileProperties;
     private final TransactionTemplate transactionTemplate;
+    private final LocalFileStoreGuard localFileStoreGuard;
     private final ConcurrentMap<Long, PreviewMetadata> publicPreviewCache = new ConcurrentHashMap<>();
 
     public FileAssetServiceImpl(FileProperties fileProperties, TransactionTemplate transactionTemplate) {
         this.fileProperties = fileProperties;
         this.transactionTemplate = transactionTemplate;
+        this.localFileStoreGuard = new LocalFileStoreGuard(fileProperties.getMaxConcurrentImageStores());
     }
 
     @Override
@@ -192,15 +195,29 @@ public class FileAssetServiceImpl extends ServiceImpl<FileAssetMapper, FileAsset
             throw new BusinessException(BusinessCode.UPLOAD_FAILED, "Invalid temporary upload target");
         }
         try {
-            Files.createDirectories(tempPath.getParent());
-            Files.createDirectories(targetPath.getParent());
-            Files.write(tempPath, fileBytes);
-            moveTempFile(tempPath, targetPath);
+            localFileStoreGuard.execute(() -> writeImageFile(tempPath, targetPath, fileBytes));
         } catch (IOException exception) {
             deleteStoredFile(tempPath);
             deleteStoredFile(targetPath);
             throw new BusinessException(BusinessCode.UPLOAD_FAILED, "Failed to store image");
         }
+    }
+
+    private void writeImageFile(Path tempPath, Path targetPath, byte[] fileBytes) throws IOException {
+        try {
+            writeImageFileOnce(tempPath, targetPath, fileBytes);
+        } catch (NoSuchFileException exception) {
+            localFileStoreGuard.forgetDirectory(tempPath.getParent());
+            localFileStoreGuard.forgetDirectory(targetPath.getParent());
+            writeImageFileOnce(tempPath, targetPath, fileBytes);
+        }
+    }
+
+    private void writeImageFileOnce(Path tempPath, Path targetPath, byte[] fileBytes) throws IOException {
+        localFileStoreGuard.ensureDirectoryExists(tempPath.getParent());
+        localFileStoreGuard.ensureDirectoryExists(targetPath.getParent());
+        Files.write(tempPath, fileBytes);
+        moveTempFile(tempPath, targetPath);
     }
 
     private void moveTempFile(Path tempPath, Path targetPath) throws IOException {

@@ -6,6 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class FileProperties {
     private String localRoot = "./.local-data/uploads";
     private long maxImageBytes = 614400;
+    private int maxConcurrentImageStores = 20;
 
     public String getLocalRoot() {
         return localRoot;
@@ -21,5 +22,13 @@ public class FileProperties {
 
     public void setMaxImageBytes(long maxImageBytes) {
         this.maxImageBytes = maxImageBytes;
+    }
+
+    public int getMaxConcurrentImageStores() {
+        return maxConcurrentImageStores;
+    }
+
+    public void setMaxConcurrentImageStores(int maxConcurrentImageStores) {
+        this.maxConcurrentImageStores = maxConcurrentImageStores;
     }
 }
