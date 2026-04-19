@@ -1,6 +1,7 @@
 package io.github.dongxuetaffy.aobihelper.inventory.service.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import io.github.dongxuetaffy.aobihelper.BackendApplication;
@@ -9,6 +10,7 @@ import io.github.dongxuetaffy.aobihelper.auth.mapper.UserAccountMapper;
 import io.github.dongxuetaffy.aobihelper.inventory.dto.InventoryBatchDeleteRequest;
 import io.github.dongxuetaffy.aobihelper.inventory.dto.InventoryBatchTogglePublicRequest;
 import io.github.dongxuetaffy.aobihelper.inventory.dto.InventoryPageQuery;
+import io.github.dongxuetaffy.aobihelper.inventory.dto.InventoryTogglePublicRequest;
 import io.github.dongxuetaffy.aobihelper.inventory.entity.InventoryItem;
 import io.github.dongxuetaffy.aobihelper.inventory.mapper.InventoryItemMapper;
 import io.github.dongxuetaffy.aobihelper.inventory.service.InventoryItemService;
@@ -138,6 +140,27 @@ class InventoryItemServiceImplTest {
         assertThat(unpublishedItem.getPublicPostId()).isNull();
         assertThat(publicPostMapper.selectById(oldPostId)).isNull();
         assertThat(publicPostFlagMapper.selectById(oldFlagId)).isNull();
+    }
+
+    @Test
+    void batchTogglePublicDoesNotShareFrequencyGuardWithSingleToggle() {
+        Long userId = createUser();
+        Long singleItemId = insertInventoryItem(userId, "Single Public Inventory", "obi", "unsold", "100.00");
+        Long batchItemId = insertInventoryItem(userId, "Batch Public Inventory", "magic", "unsold", "200.00");
+
+        InventoryTogglePublicRequest singleRequest = new InventoryTogglePublicRequest();
+        singleRequest.setPrice(new BigDecimal("100.00"));
+        singleRequest.setTradeTime(LocalDate.now());
+        singleRequest.setDirection("buy");
+        singleRequest.setRequestId("single-toggle-inventory-public-" + UUID.randomUUID());
+        inventoryItemService.togglePublic(userId, singleItemId, singleRequest);
+
+        InventoryBatchTogglePublicRequest batchRequest = new InventoryBatchTogglePublicRequest();
+        batchRequest.setIds(List.of(batchItemId));
+        batchRequest.setRequestId("batch-toggle-inventory-public-" + UUID.randomUUID());
+
+        assertThatCode(() -> inventoryItemService.batchTogglePublic(userId, batchRequest))
+            .doesNotThrowAnyException();
     }
 
     private Long createUser() {

@@ -331,7 +331,7 @@ public class PublicPostServiceImpl extends ServiceImpl<PublicPostMapper, PublicP
         List<SourceItemPublicToggleCommand> commands,
         String requestId
     ) {
-        operationGuardService.assertMutationAllowed(currentUserId, "toggleSourceItemPublicPost", requestId);
+        operationGuardService.assertMutationAllowed(currentUserId, "batchToggleSourceItemPublicPosts", requestId);
         if (commands.isEmpty()) {
             return;
         }
