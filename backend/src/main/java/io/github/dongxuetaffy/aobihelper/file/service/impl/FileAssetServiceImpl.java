@@ -30,7 +30,6 @@ import org.springframework.web.multipart.MultipartFile;
 @Service
 public class FileAssetServiceImpl extends ServiceImpl<FileAssetMapper, FileAsset> implements FileAssetService {
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
-    private static final Set<String> PUBLIC_SCENES = Set.of("public", "public-post");
 
     private final FileProperties fileProperties;
     private final TransactionTemplate transactionTemplate;
@@ -64,7 +63,6 @@ public class FileAssetServiceImpl extends ServiceImpl<FileAssetMapper, FileAsset
         byte[] fileBytes = readFileBytes(file);
         ensureImageSignature(contentType, fileBytes);
 
-        boolean isPublic = resolvePublicScene(scene);
         LocalDate today = LocalDate.now();
         String objectKey = userId + "/" + today + "/" + UUID.randomUUID() + resolveExtension(contentType);
         Path rootPath = Paths.get(fileProperties.getLocalRoot()).toAbsolutePath().normalize();
@@ -80,7 +78,7 @@ public class FileAssetServiceImpl extends ServiceImpl<FileAssetMapper, FileAsset
         fileAsset.setOriginalName(resolveOriginalName(file.getOriginalFilename()));
         fileAsset.setContentType(contentType);
         fileAsset.setFileSize(fileSize);
-        fileAsset.setIsPublic(isPublic);
+        fileAsset.setIsPublic(Boolean.TRUE);
         fileAsset.setCreatedAt(now);
         fileAsset.setUpdatedAt(now);
         try {
@@ -163,13 +161,6 @@ public class FileAssetServiceImpl extends ServiceImpl<FileAssetMapper, FileAsset
             return "image";
         }
         return originalFilename.trim();
-    }
-
-    private boolean resolvePublicScene(String scene) {
-        if (scene == null || scene.isBlank()) {
-            return false;
-        }
-        return PUBLIC_SCENES.contains(scene.trim().toLowerCase());
     }
 
     private String resolveExtension(String contentType) {

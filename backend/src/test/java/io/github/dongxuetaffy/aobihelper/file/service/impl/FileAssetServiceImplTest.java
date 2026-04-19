@@ -1,12 +1,10 @@
 package io.github.dongxuetaffy.aobihelper.file.service.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.github.dongxuetaffy.aobihelper.BackendApplication;
 import io.github.dongxuetaffy.aobihelper.auth.entity.UserAccount;
 import io.github.dongxuetaffy.aobihelper.auth.mapper.UserAccountMapper;
-import io.github.dongxuetaffy.aobihelper.common.exception.BusinessException;
 import io.github.dongxuetaffy.aobihelper.config.FileProperties;
 import io.github.dongxuetaffy.aobihelper.file.entity.FileAsset;
 import io.github.dongxuetaffy.aobihelper.file.mapper.FileAssetMapper;
@@ -75,19 +73,20 @@ class FileAssetServiceImplTest {
         assertThat(asset).isNotNull();
         assertThat(asset.getUserId()).isEqualTo(userId);
         assertThat(asset.getContentType()).isEqualTo("image/png");
-        assertThat(asset.getIsPublic()).isFalse();
+        assertThat(asset.getIsPublic()).isTrue();
         assertThat(Files.exists(Path.of(fileProperties.getLocalRoot()).resolve(asset.getObjectKey()))).isTrue();
-        assertThat(fileAssetService.loadPreview(userId, upload.getFileId()).resource().exists()).isTrue();
+        assertThat(fileAssetService.loadPreview(null, upload.getFileId()).resource().exists()).isTrue();
     }
 
     @Test
-    void loadPreviewKeepsPrivateImageAuthorization() {
+    void uploadedImageCanBePreviewedWithoutLoginWhenSceneIsPrivate() {
         Long ownerId = createUser();
-        Long otherUserId = createUser();
         FileUploadVO upload = fileAssetService.uploadImage(ownerId, "private", pngFile("private.png"));
 
-        assertThatThrownBy(() -> fileAssetService.loadPreview(otherUserId, upload.getFileId()))
-            .isInstanceOf(BusinessException.class);
+        FileAssetService.FilePreviewResult result = fileAssetService.loadPreview(null, upload.getFileId());
+
+        assertThat(result.fileAsset().getIsPublic()).isTrue();
+        assertThat(result.resource().exists()).isTrue();
     }
 
     @Test
