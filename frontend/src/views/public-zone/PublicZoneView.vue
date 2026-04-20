@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import FloatingQuickNav from '@/components/common/FloatingQuickNav.vue'
+import DesktopImageUploadArea from '@/components/common/DesktopImageUploadArea.vue'
 import SquareImagePreview from '@/components/common/SquareImagePreview.vue'
 import PublicZoneDesktopContent from './PublicZoneDesktopContent.vue'
 import PublicZoneMobileContent from './PublicZoneMobileContent.vue'
@@ -213,6 +214,36 @@ const handleFileChange = async (event: Event) => {
   } finally {
     uploadingImage.value = false
     input.value = ''
+  }
+}
+
+const handleDesktopUploaded = (fileId: string) => {
+  form.imageFileId = fileId
+  compressionResult.value = null
+  uploadProgress.value = ''
+  ElMessage.success('图片已上传成功')
+}
+
+const handleDesktopUploadingChange = (value: boolean) => {
+  uploadingImage.value = value
+}
+
+const handleDesktopUploadError = (message: string) => {
+  compressionResult.value = null
+  uploadProgress.value = ''
+  ElMessage.error(message)
+}
+
+const confirmReplaceImage = async () => {
+  try {
+    await ElMessageBox.confirm('将使用新图片替换当前图片，是否继续？', '替换图片', {
+      confirmButtonText: '确认替换',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    return true
+  } catch {
+    return false
   }
 }
 
@@ -447,7 +478,24 @@ onBeforeUnmount(() => {
         </el-form-item>
 
         <el-form-item label="物品图片">
+          <DesktopImageUploadArea
+            v-if="!isMobile"
+            :model-value="form.imageFileId"
+            scene="public"
+            :uploading="uploadingImage"
+            :confirm-replace="confirmReplaceImage"
+            @uploaded="handleDesktopUploaded"
+            @uploading-change="handleDesktopUploadingChange"
+            @error="handleDesktopUploadError"
+          >
+            <template #preview>
+              <SquareImagePreview v-if="form.imageFileId" :file-id="form.imageFileId" empty-text="无图" />
+              <div v-else class="public-zone-form__upload-placeholder">选择图片</div>
+            </template>
+          </DesktopImageUploadArea>
+
           <input
+            v-if="isMobile"
             ref="fileInputRef"
             type="file"
             :accept="IMAGE_INPUT_ACCEPT"
@@ -455,7 +503,7 @@ onBeforeUnmount(() => {
             @change="handleFileChange"
           />
 
-          <div class="public-zone-form__upload">
+          <div v-if="isMobile" class="public-zone-form__upload">
             <div class="public-zone-form__upload-preview">
               <SquareImagePreview v-if="form.imageFileId" :file-id="form.imageFileId" empty-text="无图" />
               <div v-else class="public-zone-form__upload-placeholder">选择图片</div>
