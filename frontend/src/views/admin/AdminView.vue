@@ -2,8 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import PaginationBar from '@/components/common/PaginationBar.vue'
-import SquareImagePreview from '@/components/common/SquareImagePreview.vue'
-import { buildImagePreviewUrl } from '@/api/file'
+import AdminPublicPostContent from '@/views/admin/AdminPublicPostContent.vue'
 import {
   deleteAdminPublicPost,
   getAdminOverview,
@@ -38,6 +37,7 @@ const formatBytes = (bytes: number | undefined) => {
   if (value <= 0) {
     return '0 B'
   }
+
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
   const unitIndex = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1)
   const size = value / 1024 ** unitIndex
@@ -51,15 +51,15 @@ const overviewCards = computed(() => {
     { label: '用户总数', value: data?.totalUsers ?? 0 },
     { label: '活跃用户', value: data?.activeUsers ?? 0 },
     { label: '禁用用户', value: data?.disabledUsers ?? 0 },
-    { label: '今日新用户', value: data?.todayNewUsers ?? 0 },
-    { label: '仓库物品', value: data?.totalInventoryItems ?? 0 },
-    { label: '公开交易', value: data?.totalPublicPosts ?? 0 },
-    { label: '今日发布', value: data?.todayPublicPosts ?? 0 },
-    { label: '不可信总数', value: data?.totalUntrustedCount ?? 0 },
-    { label: '图片数量', value: data?.totalImageCount ?? data?.totalFiles ?? 0 },
-    { label: '图片占用', value: formatBytes(data?.totalImageBytes) },
-    { label: '总空间', value: formatBytes(data?.totalStorageBytes) },
-    { label: '可用空间', value: formatBytes(data?.usableStorageBytes) },
+    { label: '今日新增用户', value: data?.todayNewUsers ?? 0 },
+    { label: '库存物品总数', value: data?.totalInventoryItems ?? 0 },
+    { label: '公开交易总数', value: data?.totalPublicPosts ?? 0 },
+    { label: '今日公开交易', value: data?.todayPublicPosts ?? 0 },
+    { label: '不可信标记总数', value: data?.totalUntrustedCount ?? 0 },
+    { label: '图片总数', value: data?.totalImageCount ?? data?.totalFiles ?? 0 },
+    { label: '图片占用空间', value: formatBytes(data?.totalImageBytes) },
+    { label: '总存储空间', value: formatBytes(data?.totalStorageBytes) },
+    { label: '可用存储空间', value: formatBytes(data?.usableStorageBytes) },
   ]
 })
 
@@ -69,7 +69,7 @@ const loadOverview = async () => {
     const resp = await getAdminOverview()
     overview.value = resp.data
   } catch (error: any) {
-    ElMessage.error(error?.response?.data?.message || '加载后台概览失败')
+    ElMessage.error(error?.response?.data?.message || '管理员概览加载失败')
   } finally {
     overviewLoading.value = false
   }
@@ -88,7 +88,7 @@ const loadUsers = async (page = 1) => {
     users.value = resp.data.items
     userTotal.value = resp.data.totalCount
   } catch (error: any) {
-    ElMessage.error(error?.response?.data?.message || '加载用户列表失败')
+    ElMessage.error(error?.response?.data?.message || '用户列表加载失败')
   } finally {
     loading.value = false
   }
@@ -106,7 +106,7 @@ const loadPosts = async (page = 1) => {
     posts.value = resp.data.items
     postTotal.value = resp.data.totalCount
   } catch (error: any) {
-    ElMessage.error(error?.response?.data?.message || '加载公开交易失败')
+    ElMessage.error(error?.response?.data?.message || '公开交易列表加载失败')
   } finally {
     loading.value = false
   }
@@ -117,18 +117,25 @@ const handleTabChange = async () => {
     await loadUsers(1)
     return
   }
+
   await loadPosts(1)
 }
 
 const handleToggleUserStatus = async (user: AdminUser) => {
   const nextStatus = user.status === 'active' ? 'disabled' : 'active'
   const actionText = nextStatus === 'disabled' ? '禁用' : '启用'
+
   try {
-    await ElMessageBox.confirm(`确定${actionText}用户「${user.email}」吗？`, `${actionText}用户`, {
-      type: 'warning',
-      confirmButtonText: actionText,
-      cancelButtonText: '取消',
-    })
+    await ElMessageBox.confirm(
+      `确认要${actionText}用户 ${user.email} 吗？`,
+      `${actionText}用户`,
+      {
+        type: 'warning',
+        confirmButtonText: actionText,
+        cancelButtonText: '取消',
+      },
+    )
+
     await updateAdminUserStatus(user.id, nextStatus)
     ElMessage.success(`${actionText}成功`)
     await Promise.all([loadOverview(), loadUsers(userPage.value)])
@@ -141,11 +148,16 @@ const handleToggleUserStatus = async (user: AdminUser) => {
 
 const handleDeletePost = async (post: AdminPublicPost) => {
   try {
-    await ElMessageBox.confirm(`确定删除公开交易「${post.itemName}」吗？`, '删除公开交易', {
-      type: 'warning',
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-    })
+    await ElMessageBox.confirm(
+      `确认要删除公开交易 ${post.itemName} 吗？`,
+      '删除公开交易',
+      {
+        type: 'warning',
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+      },
+    )
+
     await deleteAdminPublicPost(post.id)
     ElMessage.success('删除成功')
     await Promise.all([loadOverview(), loadPosts(postPage.value)])
@@ -162,16 +174,23 @@ const formatDateTime = (value: string | null) => {
 }
 
 const channelLabel = (value: string) => {
-  const map: Record<string, string> = { xianyu: '闲鱼', tieba: '贴吧', other: '其他' }
+  const map: Record<string, string> = {
+    xianyu: '闲鱼',
+    tieba: '贴吧',
+    other: '其他',
+  }
   return map[value] || value
 }
 
 const categoryLabel = (value: string) => {
-  const map: Record<string, string> = { obi: '奥比时装', magic: '魔力时装' }
+  const map: Record<string, string> = {
+    obi: '奥比岛',
+    magic: '魔力时装',
+  }
   return map[value] || value
 }
 
-const directionLabel = (value: string) => (value === 'buy' ? '买入' : '卖出')
+const directionLabel = (value: string) => (value === 'buy' ? '收' : '出')
 
 onMounted(async () => {
   await loadOverview()
@@ -184,8 +203,8 @@ onMounted(async () => {
     <section class="admin-hero ah-glass-card ah-page-section">
       <div>
         <p class="admin-hero__eyebrow">Admin Console</p>
-        <h2>管理员端</h2>
-        <p class="admin-hero__desc">用于查看全站数据、管理用户状态、处理公开交易内容。</p>
+        <h2>管理员后台</h2>
+        <p class="admin-hero__desc">用于查看全站数据、管理用户状态，以及处理公开交易内容。</p>
       </div>
       <el-button :loading="overviewLoading" @click="loadOverview">刷新概览</el-button>
     </section>
@@ -208,18 +227,23 @@ onMounted(async () => {
               @keyup.enter="loadUsers(1)"
               @clear="loadUsers(1)"
             />
-            <el-select v-model="userFilters.status" clearable placeholder="用户状态" @change="loadUsers(1)">
-              <el-option label="正常" value="active" />
-              <el-option label="已禁用" value="disabled" />
+            <el-select
+              v-model="userFilters.status"
+              clearable
+              placeholder="用户状态"
+              @change="loadUsers(1)"
+            >
+              <el-option label="启用" value="active" />
+              <el-option label="禁用" value="disabled" />
             </el-select>
-            <el-button type="primary" @click="loadUsers(1)">查询</el-button>
+            <el-button type="primary" @click="loadUsers(1)">搜索</el-button>
           </div>
 
           <el-table v-loading="loading" :data="users" class="admin-table">
             <el-table-column prop="id" label="ID" width="82" />
             <el-table-column prop="email" label="邮箱" min-width="210" />
             <el-table-column prop="nickname" label="昵称" min-width="140" />
-            <el-table-column label="身份" width="100">
+            <el-table-column label="角色" width="100">
               <template #default="{ row }">
                 <el-tag v-if="row.admin" type="warning">管理员</el-tag>
                 <el-tag v-else>用户</el-tag>
@@ -228,14 +252,14 @@ onMounted(async () => {
             <el-table-column label="状态" width="100">
               <template #default="{ row }">
                 <el-tag :type="row.status === 'active' ? 'success' : 'danger'">
-                  {{ row.status === 'active' ? '正常' : '禁用' }}
+                  {{ row.status === 'active' ? '启用' : '禁用' }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="最后登录" min-width="180">
+            <el-table-column label="最近登录" min-width="180">
               <template #default="{ row }">{{ formatDateTime(row.lastLoginAt) }}</template>
             </el-table-column>
-            <el-table-column label="注册时间" min-width="180">
+            <el-table-column label="创建时间" min-width="180">
               <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
             </el-table-column>
             <el-table-column label="操作" width="120" fixed="right">
@@ -260,46 +284,22 @@ onMounted(async () => {
             <el-input
               v-model="postKeyword"
               clearable
-              placeholder="按物品名称搜索"
+              placeholder="按物品名或发布者搜索"
               @keyup.enter="loadPosts(1)"
               @clear="loadPosts(1)"
             />
-            <el-button type="primary" @click="loadPosts(1)">查询</el-button>
+            <el-button type="primary" @click="loadPosts(1)">搜索</el-button>
           </div>
 
-          <el-table v-loading="loading" :data="posts" class="admin-table">
-            <el-table-column label="图片" width="86">
-              <template #default="{ row }">
-                <SquareImagePreview
-                  class="admin-post-thumb"
-                  :preview-url="buildImagePreviewUrl(row.imageFileId)"
-                  empty-text="无图"
-                />
-              </template>
-            </el-table-column>
-            <el-table-column prop="itemName" label="物品" min-width="180" />
-            <el-table-column label="发布用户" min-width="210">
-              <template #default="{ row }">{{ row.userEmail || `用户 ${row.userId}` }}</template>
-            </el-table-column>
-            <el-table-column label="方向" width="90">
-              <template #default="{ row }">{{ directionLabel(row.direction) }}</template>
-            </el-table-column>
-            <el-table-column prop="price" label="价格" width="100" />
-            <el-table-column label="渠道 / 分类" min-width="160">
-              <template #default="{ row }">{{ channelLabel(row.channel) }} / {{ categoryLabel(row.category) }}</template>
-            </el-table-column>
-            <el-table-column label="不可信" width="100">
-              <template #default="{ row }">{{ row.untrustedCount }}</template>
-            </el-table-column>
-            <el-table-column label="发布时间" min-width="180">
-              <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
-            </el-table-column>
-            <el-table-column label="操作" width="100" fixed="right">
-              <template #default="{ row }">
-                <el-button size="small" type="danger" @click="handleDeletePost(row)">删除</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
+          <AdminPublicPostContent
+            :loading="loading"
+            :items="posts"
+            :format-date-time="formatDateTime"
+            :channel-label="channelLabel"
+            :category-label="categoryLabel"
+            :direction-label="directionLabel"
+            @delete="handleDeletePost"
+          />
 
           <PaginationBar :current="postPage" :total="postTotal" :page-size="PAGE_SIZE" @change="loadPosts" />
         </el-tab-pane>
@@ -391,12 +391,6 @@ onMounted(async () => {
 
 .admin-table {
   width: 100%;
-}
-
-.admin-post-thumb :deep(.square-preview) {
-  width: 54px;
-  height: 54px;
-  border-radius: 12px;
 }
 
 @media (max-width: 768px) {

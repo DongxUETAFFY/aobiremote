@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useSlots } from 'vue'
+import { computed, ref } from 'vue'
 import { uploadImage } from '@/api/file'
 import {
   compressImageBeforeUpload,
@@ -21,7 +21,6 @@ const emit = defineEmits<{
   (event: 'error', message: string): void
 }>()
 
-const slots = useSlots()
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const dragActive = ref(false)
 const compressionResult = ref<CompressionResult | null>(null)
@@ -29,6 +28,7 @@ const uploadProgress = ref('')
 const busy = ref(false)
 
 const hasCurrentImage = computed(() => Boolean(props.modelValue?.trim()))
+
 const summaryText = computed(() => {
   if (!compressionResult.value) {
     return ''
@@ -103,6 +103,7 @@ const handlePick = () => {
   if (isUploading.value) {
     return
   }
+
   fileInputRef.value?.click()
 }
 
@@ -175,6 +176,7 @@ const handlePaste = async (event: ClipboardEvent) => {
         <strong class="desktop-upload-area__notice-title">桌面端上传已升级</strong>
         <p class="desktop-upload-area__notice-text">电脑端支持点击、拖拽或粘贴上传图片</p>
       </div>
+
       <button
         type="button"
         class="desktop-upload-area__button"
@@ -183,7 +185,8 @@ const handlePaste = async (event: ClipboardEvent) => {
       >
         {{ isUploading ? '上传中...' : '选择图片' }}
       </button>
-      <p class="desktop-upload-area__hint">桌面端支持选择、拖拽或粘贴图片</p>
+
+      <p class="desktop-upload-area__hint">支持选择后自动压缩上传，已有图片会先确认再替换</p>
       <p v-if="summaryText" class="desktop-upload-area__summary">{{ summaryText }}</p>
       <p v-if="uploadProgress" class="desktop-upload-area__progress">{{ uploadProgress }}</p>
     </div>
@@ -244,6 +247,32 @@ const handlePaste = async (event: ClipboardEvent) => {
   justify-content: center;
 }
 
+.desktop-upload-area__notice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255, 244, 247, 0.98), rgba(255, 236, 241, 0.92));
+  border: 1px solid rgba(207, 93, 117, 0.18);
+}
+
+.desktop-upload-area__notice-title,
+.desktop-upload-area__notice-text {
+  margin: 0;
+}
+
+.desktop-upload-area__notice-title {
+  font-size: 13px;
+  color: #b14462;
+}
+
+.desktop-upload-area__notice-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #7a4f5e;
+}
+
 .desktop-upload-area__button {
   align-self: flex-start;
   min-width: 112px;
@@ -301,6 +330,12 @@ const handlePaste = async (event: ClipboardEvent) => {
     min-height: 96px;
   }
 
+  .desktop-upload-area__notice {
+    padding: 8px 10px;
+  }
+
+  .desktop-upload-area__notice-title,
+  .desktop-upload-area__notice-text,
   .desktop-upload-area__hint,
   .desktop-upload-area__summary,
   .desktop-upload-area__progress {

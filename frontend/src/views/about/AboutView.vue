@@ -10,84 +10,63 @@ type AboutItem = {
   desc: string
 }
 
-const version = 'v1.0.0'
-const updatedAt = '2026-04-16'
+const version = 'v1.0.6'
+const updatedAt = '2026-04-20'
 const rewardImageUrl = '/reward-code.png'
 
 const aboutItems: AboutItem[] = [
   {
     key: 'version',
     title: '版本信息',
-    desc: '查看当前版本号和更新时间。',
+    desc: '查看当前版本号、更新时间和功能范围。',
   },
   {
     key: 'creator',
     title: '关于作者',
-    desc: '查看创作者信息。',
+    desc: '了解这个小助手的来历和设计初衷。',
   },
   {
     key: 'log',
     title: '更新日志',
-    desc: '查看最近的版本更新记录。',
+    desc: '快速查看最近做了哪些优化和修复。',
   },
   {
     key: 'reward',
-    title: '赞赏作者',
-    desc: '预览赞赏码，并可保存图片。',
+    title: '赞赏支持',
+    desc: '如果这个工具帮到了你，可以请作者喝杯饮料。',
   },
 ]
 
 const creatorText = [
-  '本项目由个人创作者持续开发与维护。',
+  '这个小助手是为奥比岛玩家日常记账和整理物品信息做的。',
   '',
-  '贴吧 ID：鹤箫雪',
-  '奥比岛 ID：纯在做梦',
+  '它会持续围绕几个方向打磨：',
+  '1. 记账流程更顺手',
+  '2. 图片和物品信息更好管理',
+  '3. 公开交易区浏览体验更清楚',
   '',
-  '为爱发电，自费完成开发，无盈利行为。',
+  '感谢每一次反馈和建议，它们都会直接影响后续更新。',
 ].join('\n')
 
 const changeLogText = [
   '更新日志',
   '',
-  '2026-04-16 v1.0.0',
-  '新增：',
-  '1. Web 版关于页改为与原小程序更接近的条目式结构。',
-  '2. 补齐了版本信息、创作者说明、更新日志和赞赏码弹层。',
+  '2026-04-20 v1.0.6',
+  '1. 管理员端公开交易图片改成更清晰的大卡片显示，查看更方便。',
+  '2. 电脑端上传支持点击、拖拽和粘贴，换图前会先确认。',
+  '3. 图片会自动压缩后再上传，操作更省心。',
   '',
-  '2026-04-15 v1.0.5',
-  '修复：',
-  '1. 修复了北京时间凌晨时日期选择上限显示为前一天的问题。',
-  '2. 修复了跨天后部分页面日期校验不同步的问题。',
+  '2026-04-18 v1.0.5',
+  '1. 修复了部分公开交易图片显示失败的问题。',
+  '2. 优化了公开和图片访问相关的稳定性。',
   '',
-  '优化：',
-  '1. 优化了日期选择与日期校验的稳定性。',
-  '2. 优化了公开交易区备注的浏览体验，支持点击查看完整备注。',
-  '3. 优化了三个分区上传物品时的分类顺序，并将默认分类调整为奥比时装。',
-  '4. 优化了关于作者信息的显示方式，换行展示更清晰。',
+  '2026-04-16 v1.0.4',
+  '1. 关于页补齐了版本信息、作者说明、更新日志和赞赏入口。',
+  '2. 页面结构调整得更清楚，查看信息更直接。',
   '',
-  '2026-04-14 v1.0.4',
-  '修复：',
-  '1. 修复了公开状态与页面按钮显示不同步的问题。',
-  '2. 修复了公开交易区图片显示异常的问题。',
-  '3. 修复了部分页面文案显示异常的问题。',
-  '',
-  '优化：',
-  '1. 优化了图片显示与加载体验。',
-  '2. 优化了仓库、盈亏统计和公开交易区之间的数据同步体验。',
-  '',
-  '2026-04-13 v1.0.3',
-  '修复：',
-  '1. 修复了日期填写的问题。',
-  '2. 修复了物品时间排序按交易时间排序。',
-  '3. 修复了翻到底部时会自动跳转到下一页的问题。',
-  '4. 进行了接口请求和图片存储的性能优化。',
-  '',
-  '新增：',
-  '1. 新增了分页功能，并进行了性能优化。',
-  '2. 新增了一键公开的功能。',
-  '3. 新增了返回顶部的功能。',
-  '4. 新增了公开交易区价格筛选的功能。',
-  '5. 新增了添加物品备注的功能。',
+  '2026-04-14 v1.0.3',
+  '1. 公开交易区支持更完整的筛选和浏览。',
+  '2. 仓库、盈利统计等基础功能继续完善。',
 ].join('\n')
 
 const openVersionInfo = async () => {
@@ -100,9 +79,9 @@ const openVersionInfo = async () => {
       },
       [
         `当前版本：${version}`,
-        `最后更新：${updatedAt}`,
+        `更新时间：${updatedAt}`,
         '',
-        '奥比岛助手 Web 版当前已支持仓库管理、盈亏统计、公开交易区和关于页基础功能。',
+        '当前版本已支持仓库管理、盈利统计、公开交易区、管理员端和关于页等基础功能。',
       ].join('\n'),
     ),
     showCancelButton: false,
@@ -140,7 +119,7 @@ const openTextPopup = async (title: string, text: string) => {
 
 const openRewardPopup = async () => {
   await ElMessageBox({
-    title: '赞赏作者',
+    title: '赞赏支持',
     message: h('div', { class: 'about-popup-reward' }, [
       h(ElImage, {
         class: 'about-popup-reward__image',
@@ -154,7 +133,7 @@ const openRewardPopup = async () => {
         {
           class: 'about-popup-reward__tip',
         },
-        '点击赞赏码小图可直接预览大图，交互与物品列表点击图片查看大图一致。',
+        '感谢你的支持。赞赏完全自愿，只要这个工具能帮到你，我就很开心。',
       ),
     ]),
     showCancelButton: false,
@@ -170,14 +149,17 @@ const openItem = async (key: AboutItemKey) => {
     await openVersionInfo()
     return
   }
+
   if (key === 'creator') {
     await openTextPopup('关于作者', creatorText)
     return
   }
+
   if (key === 'log') {
     await openTextPopup('更新日志', changeLogText)
     return
   }
+
   await openRewardPopup()
 }
 </script>
@@ -188,7 +170,7 @@ const openItem = async (key: AboutItemKey) => {
       <p class="about-hero__eyebrow">Aobi Helper Web</p>
       <h2 class="about-hero__title">关于</h2>
       <p class="about-hero__subtitle">
-        在这里查看版本信息、创作者说明、更新日志和赞赏码。
+        在这里查看版本信息、作者说明、更新日志和赞赏支持。
       </p>
     </section>
 
