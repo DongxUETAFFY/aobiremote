@@ -104,13 +104,15 @@ const emit = defineEmits<{
         <el-button @click="emit('price-clear')">清空</el-button>
       </div>
       <div class="public-zone-filters__group">
-        <span class="public-zone-filters__label">范围</span>
         <PriceSortToggle
           :model-value="sortType === 'tradeTimeDesc' ? 'default' : sortType"
           asc-value="priceAsc"
           desc-value="priceDesc"
           @change="emit('sort-change', $event as PublicPostSortType | 'default')"
         />
+      </div>
+      <div class="public-zone-filters__group">
+        <span class="public-zone-filters__label">范围</span>
         <el-radio-group
           :model-value="filterScope"
           size="small"
@@ -134,23 +136,27 @@ const emit = defineEmits<{
       </div>
       <div class="public-zone-filters__group">
         <span class="public-zone-filters__label">渠道</span>
-        <el-select
+        <el-radio-group
           :model-value="filterChannel"
           size="small"
           @update:model-value="emit('update:filterChannel', $event); emit('filter-change')"
         >
-          <el-option v-for="opt in channelOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
-        </el-select>
+          <el-radio-button v-for="opt in channelOptions" :key="opt.value" :label="opt.value">
+            {{ opt.label }}
+          </el-radio-button>
+        </el-radio-group>
       </div>
       <div class="public-zone-filters__group">
         <span class="public-zone-filters__label">分类</span>
-        <el-select
+        <el-radio-group
           :model-value="filterCategory"
           size="small"
           @update:model-value="emit('update:filterCategory', $event); emit('filter-change')"
         >
-          <el-option v-for="opt in categoryOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
-        </el-select>
+          <el-radio-button v-for="opt in categoryOptions" :key="opt.value" :label="opt.value">
+            {{ opt.label }}
+          </el-radio-button>
+        </el-radio-group>
       </div>
     </section>
 
@@ -251,10 +257,25 @@ const emit = defineEmits<{
 }
 
 .public-zone-header {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 20px;
+  background:
+    linear-gradient(135deg, rgba(255, 250, 241, 0.96), rgba(255, 241, 248, 0.92));
+}
+
+.public-zone-header::after {
+  position: absolute;
+  right: -32px;
+  top: -46px;
+  width: 160px;
+  height: 160px;
+  content: '';
+  border-radius: 44% 56% 58% 42%;
+  background: linear-gradient(135deg, rgba(255, 143, 177, 0.2), rgba(156, 207, 156, 0.18));
 }
 
 .public-zone-header__eyebrow {
@@ -278,29 +299,48 @@ const emit = defineEmits<{
 }
 
 .public-zone-filters {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   gap: 20px;
   flex-wrap: wrap;
+  padding-left: 34px;
+  background:
+    linear-gradient(90deg, rgba(156, 207, 156, 0.17), rgba(255, 252, 247, 0.92) 34%, rgba(255, 255, 255, 0.78));
+}
+
+.public-zone-filters::before {
+  position: absolute;
+  left: 14px;
+  top: 18px;
+  bottom: 18px;
+  width: 6px;
+  content: '';
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--ah-mint), var(--ah-accent));
+  box-shadow: 0 8px 18px rgba(156, 207, 156, 0.26);
 }
 
 .public-zone-filters__group {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
 }
 
 .public-zone-filters__search {
-  flex: 1 1 320px;
+  flex: 0 1 560px;
 }
 
 .public-zone-filters__search-input {
-  min-width: 220px;
-  max-width: 360px;
+  width: min(34vw, 420px);
+  min-width: 260px;
+  max-width: 420px;
 }
 
 .public-zone-filters__price {
-  flex: 1 1 420px;
+  flex: 0 1 620px;
   flex-wrap: wrap;
 }
 
@@ -318,6 +358,34 @@ const emit = defineEmits<{
   font-size: 13px;
   font-weight: 700;
   white-space: nowrap;
+}
+
+.public-zone-filters :deep(.price-sort-toggle) {
+  flex-wrap: nowrap;
+}
+
+.public-zone-filters :deep(.price-sort-toggle__label),
+.public-zone-filters :deep(.price-sort-toggle__button) {
+  white-space: nowrap;
+}
+
+.public-zone-filters :deep(.el-radio-group) {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0;
+}
+
+.public-zone-filters :deep(.el-radio-button__inner) {
+  min-width: 58px;
+  border-color: rgba(205, 145, 168, 0.24);
+  color: var(--ah-text);
+  font-weight: 700;
+}
+
+.public-zone-filters :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
+  border-color: var(--ah-accent-deep);
+  background: linear-gradient(135deg, var(--ah-accent) 0%, var(--ah-accent-deep) 100%);
+  box-shadow: -1px 0 0 0 var(--ah-accent-deep);
 }
 
 .public-zone-loading {

@@ -29,6 +29,7 @@ const updateSort = (value: string) => {
       class="price-sort-toggle__button"
       :class="{ 'price-sort-toggle__button--active': modelValue === ascValue }"
       type="button"
+      :aria-pressed="modelValue === ascValue"
       @click="updateSort(ascValue)"
     >
       从低到高
@@ -37,6 +38,7 @@ const updateSort = (value: string) => {
       class="price-sort-toggle__button"
       :class="{ 'price-sort-toggle__button--active': modelValue === descValue }"
       type="button"
+      :aria-pressed="modelValue === descValue"
       @click="updateSort(descValue)"
     >
       从高到低
@@ -49,7 +51,7 @@ const updateSort = (value: string) => {
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 7px;
 }
 
 .price-sort-toggle__label {
@@ -60,29 +62,36 @@ const updateSort = (value: string) => {
 }
 
 .price-sort-toggle__button {
-  border: 1px solid rgba(205, 145, 168, 0.26);
+  min-height: 34px;
+  border: 1px solid var(--ah-control-border);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.72);
+  background: var(--ah-control-bg);
   color: var(--ah-text);
   cursor: pointer;
   font-size: 13px;
   font-weight: 700;
   line-height: 1;
-  padding: 9px 13px;
-  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.2s;
+  padding: 8px 13px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.54);
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s, color 0.2s, transform 0.2s;
 }
 
 .price-sort-toggle__button:hover {
   transform: translateY(-1px);
   border-color: rgba(240, 111, 154, 0.45);
-  background: rgba(255, 248, 251, 0.95);
+  background: var(--ah-control-hover);
+}
+
+.price-sort-toggle__button:focus-visible {
+  outline: 0;
+  box-shadow: var(--ah-focus-ring);
 }
 
 .price-sort-toggle__button--active {
   border-color: transparent;
   background: linear-gradient(135deg, var(--ah-accent) 0%, var(--ah-accent-deep) 100%);
   color: #fff;
-  box-shadow: 0 8px 18px rgba(240, 111, 154, 0.18);
+  box-shadow: 0 10px 20px rgba(240, 111, 154, 0.2);
 }
 
 @media (max-width: 640px) {

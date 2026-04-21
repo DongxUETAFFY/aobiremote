@@ -380,17 +380,36 @@ const toggleItemSelection = (itemId: number, checked: boolean | string | number)
 }
 
 .warehouse-search {
-  display: flex;
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(360px, 760px) max-content;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
+  gap: 18px;
+  padding-left: 34px;
+  background:
+    linear-gradient(90deg, rgba(255, 143, 177, 0.16), rgba(255, 252, 247, 0.92) 36%, rgba(255, 255, 255, 0.78));
+}
+
+.warehouse-search::before {
+  position: absolute;
+  left: 14px;
+  top: 18px;
+  bottom: 18px;
+  width: 6px;
+  content: '';
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--ah-accent), var(--ah-highlight));
+  box-shadow: 0 8px 18px rgba(240, 111, 154, 0.26);
 }
 
 .warehouse-search__group {
   display: flex;
   align-items: center;
   gap: 12px;
-  flex-wrap: wrap;
-  width: 100%;
+  min-width: 0;
+  width: min(100%, 760px);
 }
 
 .warehouse-search__label {
@@ -401,7 +420,29 @@ const toggleItemSelection = (itemId: number, checked: boolean | string | number)
 
 .warehouse-search__input {
   flex: 1;
-  min-width: 220px;
+  min-width: 260px;
+  max-width: 620px;
+}
+
+.warehouse-search :deep(.price-sort-toggle) {
+  flex-wrap: nowrap;
+  justify-self: end;
+}
+
+.warehouse-search :deep(.price-sort-toggle__label),
+.warehouse-search :deep(.price-sort-toggle__button) {
+  white-space: nowrap;
+}
+
+@media (max-width: 1100px) {
+  .warehouse-search {
+    grid-template-columns: 1fr;
+    justify-content: stretch;
+  }
+
+  .warehouse-search :deep(.price-sort-toggle) {
+    justify-self: start;
+  }
 }
 
 .warehouse-loading {

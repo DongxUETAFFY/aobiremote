@@ -34,6 +34,8 @@ const handleLogout = async () => {
   <div class="layout-shell">
     <header class="layout-hero ah-page-shell">
       <div class="layout-hero__card ah-glass-card">
+        <span class="layout-hero__orb layout-hero__orb--pink" aria-hidden="true"></span>
+        <span class="layout-hero__orb layout-hero__orb--gold" aria-hidden="true"></span>
         <div class="layout-hero__actions">
           <template v-if="authStore.isAuthenticated">
             <div class="layout-hero__account-chip">
@@ -65,6 +67,11 @@ const handleLogout = async () => {
         <div class="layout-hero__copy">
           <p class="layout-hero__eyebrow">Aobi Helper Web</p>
           <h1>{{ currentTitle }}</h1>
+          <p class="layout-hero__tagline">记录每一次买入、卖出和公开展示</p>
+        </div>
+        <div class="layout-hero__stamp" aria-hidden="true">
+          <span>OBI</span>
+          <strong>账本</strong>
         </div>
       </div>
     </header>
@@ -94,7 +101,7 @@ const handleLogout = async () => {
 
 <style scoped>
 .layout-shell {
-  padding: 28px 0 40px;
+  padding: 30px 0 44px;
 }
 
 .layout-hero__card,
@@ -104,34 +111,131 @@ const handleLogout = async () => {
 }
 
 .layout-hero__card {
+  overflow: hidden;
   position: relative;
   justify-content: space-between;
   gap: 24px;
-  padding: 30px 34px;
+  min-height: 178px;
+  padding: 38px 40px;
+  background:
+    linear-gradient(120deg, rgba(255, 249, 239, 0.96) 0%, rgba(255, 244, 249, 0.94) 48%, rgba(255, 236, 242, 0.9) 100%);
+}
+
+.layout-hero__card::before {
+  position: absolute;
+  right: -70px;
+  bottom: -118px;
+  width: 360px;
+  height: 240px;
+  content: '';
+  border-radius: 54% 46% 0 0;
+  background:
+    radial-gradient(circle at 58% 34%, rgba(255, 255, 255, 0.7), transparent 18%),
+    linear-gradient(135deg, rgba(255, 143, 177, 0.42), rgba(255, 216, 107, 0.32));
+  transform: rotate(-8deg);
+}
+
+.layout-hero__card::after {
+  position: absolute;
+  left: 28px;
+  right: 28px;
+  bottom: 18px;
+  height: 1px;
+  content: '';
+  background: linear-gradient(90deg, transparent, rgba(127, 54, 84, 0.24), transparent);
+}
+
+.layout-hero__orb {
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+  filter: blur(0.2px);
+}
+
+.layout-hero__orb--pink {
+  top: 24px;
+  left: 34%;
+  width: 12px;
+  height: 12px;
+  background: var(--ah-accent);
+  box-shadow: 0 0 0 9px rgba(255, 143, 177, 0.12);
+}
+
+.layout-hero__orb--gold {
+  right: 190px;
+  bottom: 36px;
+  width: 16px;
+  height: 16px;
+  background: var(--ah-highlight);
+  box-shadow: 0 0 0 11px rgba(255, 216, 107, 0.16);
 }
 
 .layout-hero__actions {
   position: absolute;
-  top: 16px;
-  right: 20px;
+  top: 18px;
+  right: 22px;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: flex-end;
 }
 
+.layout-hero__copy {
+  position: relative;
+  z-index: 1;
+  max-width: 680px;
+}
+
 .layout-hero__eyebrow {
   margin: 0 0 8px;
   font-size: 13px;
-  letter-spacing: 0.2em;
+  font-weight: 800;
+  letter-spacing: 0.24em;
   text-transform: uppercase;
-  color: #b27f93;
+  color: var(--ah-accent-ink);
 }
 
 .layout-hero h1 {
   margin: 0;
-  font-size: 40px;
-  line-height: 1.1;
+  font-size: clamp(38px, 5vw, 58px);
+  line-height: 1.02;
+  letter-spacing: -0.04em;
   color: var(--ah-title);
+  text-shadow: 0 12px 30px rgba(127, 54, 84, 0.12);
+}
+
+.layout-hero__tagline {
+  margin: 14px 0 0;
+  color: var(--ah-muted);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.layout-hero__stamp {
+  position: absolute;
+  right: 58px;
+  bottom: 32px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 96px;
+  border: 2px dashed rgba(127, 54, 84, 0.28);
+  border-radius: 999px;
+  color: rgba(127, 54, 84, 0.56);
+  transform: rotate(10deg);
+}
+
+.layout-hero__stamp span {
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+}
+
+.layout-hero__stamp strong {
+  margin-top: -34px;
+  font-size: 24px;
+  letter-spacing: 0.08em;
 }
 
 .layout-nav {
@@ -141,31 +245,42 @@ const handleLogout = async () => {
 .layout-nav__card {
   justify-content: flex-start;
   gap: 16px;
-  padding: 16px;
+  padding: 10px;
   flex-wrap: wrap;
+  background: rgba(255, 250, 241, 0.76);
+  border-radius: 999px;
 }
 
 .layout-nav__links {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .layout-nav__item {
+  position: relative;
+  overflow: hidden;
   border: 0;
   border-radius: 999px;
-  padding: 12px 18px;
+  padding: 12px 20px;
   cursor: pointer;
-  color: #8a6478;
-  background: rgba(255, 255, 255, 0.8);
-  transition: 0.2s ease;
+  color: var(--ah-accent-ink);
+  background: rgba(255, 255, 255, 0.58);
+  font-weight: 800;
+  transition: background 0.2s ease, box-shadow 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.layout-nav__item:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.92);
 }
 
 .layout-nav__item.is-active {
   color: #fff;
-  background: linear-gradient(135deg, var(--ah-accent) 0%, var(--ah-accent-deep) 100%);
-  box-shadow: 0 12px 24px rgba(240, 111, 154, 0.26);
+  background:
+    linear-gradient(135deg, var(--ah-accent) 0%, var(--ah-accent-deep) 100%);
+  box-shadow: 0 14px 28px rgba(240, 111, 154, 0.28);
 }
 
 .layout-main {
@@ -237,6 +352,18 @@ const handleLogout = async () => {
     align-items: flex-start;
   }
 
+  .layout-hero__stamp {
+    right: 28px;
+    bottom: 28px;
+    width: 76px;
+    height: 76px;
+  }
+
+  .layout-hero__stamp strong {
+    margin-top: -28px;
+    font-size: 19px;
+  }
+
   .layout-hero h1 {
     font-size: 30px;
   }
@@ -266,6 +393,15 @@ const handleLogout = async () => {
     gap: 3px;
     padding: 7px 10px;
     border-radius: 12px;
+    min-height: auto;
+  }
+
+  .layout-hero__card::before,
+  .layout-hero__card::after,
+  .layout-hero__orb,
+  .layout-hero__stamp,
+  .layout-hero__tagline {
+    display: none;
   }
 
   .layout-hero__actions {

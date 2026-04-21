@@ -101,13 +101,16 @@ const emit = defineEmits<{
       </div>
 
       <div class="public-zone-mobile-filters__block">
-        <span class="public-zone-mobile-filters__label">范围</span>
         <PriceSortToggle
           :model-value="sortType === 'tradeTimeDesc' ? 'default' : sortType"
           asc-value="priceAsc"
           desc-value="priceDesc"
           @change="emit('sort-change', $event as PublicPostSortType | 'default')"
         />
+      </div>
+
+      <div class="public-zone-mobile-filters__block">
+        <span class="public-zone-mobile-filters__label">范围</span>
         <el-radio-group
           :model-value="filterScope"
           @update:model-value="emit('update:filterScope', $event); emit('filter-change')"

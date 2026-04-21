@@ -15,10 +15,12 @@ describe('PriceSortToggle', () => {
     const buttons = wrapper.findAll('button')
 
     expect(buttons).toHaveLength(2)
+    expect(buttons[0].attributes('aria-pressed')).toBe('false')
 
     await buttons[0].trigger('click')
     await buttons[1].trigger('click')
     await wrapper.setProps({ modelValue: 'priceDesc' })
+    expect(buttons[1].attributes('aria-pressed')).toBe('true')
     await buttons[1].trigger('click')
 
     expect(wrapper.emitted('update:modelValue')).toEqual([

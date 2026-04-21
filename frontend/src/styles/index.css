@@ -1,27 +1,36 @@
 :root {
   color-scheme: light;
-  font-family: 'Microsoft YaHei', 'PingFang SC', 'Segoe UI', sans-serif;
+  font-family: 'LXGW WenKai', 'Microsoft YaHei', 'PingFang SC', 'Segoe UI', sans-serif;
   line-height: 1.5;
   font-weight: 400;
   color: #3f3441;
   background:
-    radial-gradient(circle at top left, rgba(255, 206, 229, 0.48), transparent 28%),
-    radial-gradient(circle at top right, rgba(255, 242, 184, 0.52), transparent 24%),
-    linear-gradient(180deg, #fffaf7 0%, #fffdfa 38%, #fff4f7 100%);
+    radial-gradient(circle at 10% 8%, rgba(255, 157, 194, 0.34), transparent 28%),
+    radial-gradient(circle at 88% 4%, rgba(255, 221, 111, 0.44), transparent 26%),
+    radial-gradient(circle at 72% 72%, rgba(178, 222, 184, 0.2), transparent 28%),
+    linear-gradient(135deg, #fff8ef 0%, #fffdf7 45%, #fff0f5 100%);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   --ah-shell-width: 1200px;
   --ah-card-radius: 28px;
-  --ah-shadow: 0 20px 50px rgba(213, 160, 178, 0.22);
-  --ah-border: rgba(205, 145, 168, 0.18);
-  --ah-card-bg: rgba(255, 255, 255, 0.88);
+  --ah-shadow: 0 22px 60px rgba(149, 93, 112, 0.18);
+  --ah-border: rgba(186, 122, 144, 0.2);
+  --ah-card-bg: rgba(255, 252, 247, 0.9);
   --ah-title: #5f4252;
   --ah-text: #694e5d;
+  --ah-muted: #9a7587;
   --ah-accent: #ff8fb1;
   --ah-accent-deep: #f06f9a;
+  --ah-accent-ink: #7f3654;
   --ah-highlight: #ffd86b;
+  --ah-mint: #9ccf9c;
+  --ah-paper: #fff8ec;
+  --ah-control-bg: rgba(255, 255, 255, 0.74);
+  --ah-control-border: rgba(205, 145, 168, 0.28);
+  --ah-control-hover: rgba(255, 248, 251, 0.96);
+  --ah-focus-ring: 0 0 0 3px rgba(240, 111, 154, 0.16);
 }
 
 * {
@@ -36,6 +45,27 @@ body,
 
 body {
   margin: 0;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  content: '';
+  background-image:
+    linear-gradient(rgba(127, 54, 84, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(127, 54, 84, 0.035) 1px, transparent 1px),
+    radial-gradient(circle, rgba(240, 111, 154, 0.12) 1px, transparent 1.5px);
+  background-position: 0 0, 0 0, 14px 18px;
+  background-size: 38px 38px, 38px 38px, 28px 28px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.76), rgba(0, 0, 0, 0.2));
+}
+
+#app {
+  position: relative;
 }
 
 button,
@@ -43,6 +73,14 @@ input,
 textarea,
 select {
   font: inherit;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid rgba(240, 111, 154, 0.48);
+  outline-offset: 2px;
 }
 
 a {
@@ -61,6 +99,8 @@ a {
   border-radius: var(--ah-card-radius);
   box-shadow: var(--ah-shadow);
   backdrop-filter: blur(18px);
+  outline: 1px solid rgba(255, 255, 255, 0.52);
+  outline-offset: -2px;
 }
 
 .ah-page-section {

@@ -321,17 +321,36 @@ const emit = defineEmits<{
 }
 
 .profit-search {
-  display: flex;
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(360px, 760px) max-content;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
+  gap: 18px;
+  padding-left: 34px;
+  background:
+    linear-gradient(90deg, rgba(255, 216, 107, 0.18), rgba(255, 252, 247, 0.92) 36%, rgba(255, 255, 255, 0.78));
+}
+
+.profit-search::before {
+  position: absolute;
+  left: 14px;
+  top: 18px;
+  bottom: 18px;
+  width: 6px;
+  content: '';
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--ah-highlight), var(--ah-accent));
+  box-shadow: 0 8px 18px rgba(255, 194, 80, 0.24);
 }
 
 .profit-search__group {
   display: flex;
   align-items: center;
   gap: 12px;
-  flex-wrap: wrap;
-  width: 100%;
+  min-width: 0;
+  width: min(100%, 760px);
 }
 
 .profit-search__label {
@@ -342,7 +361,29 @@ const emit = defineEmits<{
 
 .profit-search__input {
   flex: 1;
-  min-width: 220px;
+  min-width: 260px;
+  max-width: 620px;
+}
+
+.profit-search :deep(.price-sort-toggle) {
+  flex-wrap: nowrap;
+  justify-self: end;
+}
+
+.profit-search :deep(.price-sort-toggle__label),
+.profit-search :deep(.price-sort-toggle__button) {
+  white-space: nowrap;
+}
+
+@media (max-width: 1100px) {
+  .profit-search {
+    grid-template-columns: 1fr;
+    justify-content: stretch;
+  }
+
+  .profit-search :deep(.price-sort-toggle) {
+    justify-self: start;
+  }
 }
 
 .profit-loading {

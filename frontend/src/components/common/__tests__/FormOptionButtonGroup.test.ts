@@ -7,6 +7,7 @@ describe('FormOptionButtonGroup', () => {
     const wrapper = mount(FormOptionButtonGroup, {
       props: {
         modelValue: 'xianyu',
+        label: '渠道',
         options: [
           { label: '闲鱼', value: 'xianyu' },
           { label: '贴吧', value: 'tieba' },
@@ -15,7 +16,13 @@ describe('FormOptionButtonGroup', () => {
       },
     })
 
-    await wrapper.findAll('button')[1].trigger('click')
+    const buttons = wrapper.findAll('button')
+
+    expect(wrapper.attributes('role')).toBe('group')
+    expect(wrapper.attributes('aria-label')).toBe('渠道')
+    expect(buttons[0].attributes('aria-pressed')).toBe('true')
+
+    await buttons[1].trigger('click')
 
     expect(wrapper.emitted('update:modelValue')).toEqual([['tieba']])
   })
