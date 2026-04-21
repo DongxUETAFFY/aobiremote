@@ -86,7 +86,7 @@ export interface PublicPostPageQuery {
   keyword?: string
   minPrice?: string
   maxPrice?: string
-  sortType?: 'tradeTimeDesc' | 'priceDesc'
+  sortType?: 'tradeTimeDesc' | 'priceAsc' | 'priceDesc'
 }
 
 export interface PublicPostToggleUntrustedResponse {

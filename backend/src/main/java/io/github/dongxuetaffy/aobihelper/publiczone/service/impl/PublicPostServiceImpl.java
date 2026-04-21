@@ -50,7 +50,7 @@ public class PublicPostServiceImpl extends ServiceImpl<PublicPostMapper, PublicP
     private static final Set<String> ALLOWED_DIRECTIONS = Set.of("buy", "sell");
     private static final Set<String> ALLOWED_CHANNELS = Set.of("xianyu", "tieba", "other");
     private static final Set<String> ALLOWED_CATEGORIES = Set.of("magic", "obi");
-    private static final Set<String> ALLOWED_SORT_TYPES = Set.of("tradeTimeDesc", "priceDesc");
+    private static final Set<String> ALLOWED_SORT_TYPES = Set.of("tradeTimeDesc", "priceAsc", "priceDesc");
     private static final long DEFAULT_PAGE_NO = 1L;
     private static final long DEFAULT_PAGE_SIZE = 30L;
     private static final long MAX_PAGE_SIZE = 30L;
@@ -113,7 +113,9 @@ public class PublicPostServiceImpl extends ServiceImpl<PublicPostMapper, PublicP
                 wrapper.le(PublicPost::getPrice, priceRange.maxPrice());
             }
         }
-        if ("priceDesc".equals(sortType)) {
+        if ("priceAsc".equals(sortType)) {
+            wrapper.orderByAsc(PublicPost::getPrice).orderByDesc(PublicPost::getCreatedAt);
+        } else if ("priceDesc".equals(sortType)) {
             wrapper.orderByDesc(PublicPost::getPrice).orderByDesc(PublicPost::getCreatedAt);
         } else {
             wrapper.orderByDesc(PublicPost::getTradeTime).orderByDesc(PublicPost::getCreatedAt);

@@ -49,7 +49,7 @@ public class InventoryItemServiceImpl extends ServiceImpl<InventoryItemMapper, I
     private static final String CATEGORY_OBI = "obi";
     private static final Set<String> ALLOWED_CHANNELS = Set.of("xianyu", "tieba", "other");
     private static final Set<String> ALLOWED_CATEGORIES = Set.of("magic", "obi");
-    private static final Set<String> ALLOWED_SORT_TYPES = Set.of("buyTimeDesc", "buyPriceDesc");
+    private static final Set<String> ALLOWED_SORT_TYPES = Set.of("buyTimeDesc", "buyPriceAsc", "buyPriceDesc");
     private static final long DEFAULT_PAGE_NO = 1L;
     private static final long DEFAULT_PAGE_SIZE = 30L;
     private static final long MAX_PAGE_SIZE = 30L;
@@ -247,6 +247,10 @@ public class InventoryItemServiceImpl extends ServiceImpl<InventoryItemMapper, I
             if (priceRange.maxPrice() != null) {
                 queryWrapper.le(InventoryItem::getBuyPrice, priceRange.maxPrice());
             }
+        }
+        if ("buyPriceAsc".equals(sortType)) {
+            queryWrapper.orderByAsc(InventoryItem::getBuyPrice).orderByDesc(InventoryItem::getCreatedAt);
+            return;
         }
         if ("buyPriceDesc".equals(sortType)) {
             queryWrapper.orderByDesc(InventoryItem::getBuyPrice).orderByDesc(InventoryItem::getCreatedAt);

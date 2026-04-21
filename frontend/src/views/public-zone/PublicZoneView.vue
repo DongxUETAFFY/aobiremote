@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import FloatingQuickNav from '@/components/common/FloatingQuickNav.vue'
 import DesktopImageUploadArea from '@/components/common/DesktopImageUploadArea.vue'
+import FormOptionButtonGroup from '@/components/common/FormOptionButtonGroup.vue'
 import SquareImagePreview from '@/components/common/SquareImagePreview.vue'
 import PublicZoneDesktopContent from './PublicZoneDesktopContent.vue'
 import PublicZoneMobileContent from './PublicZoneMobileContent.vue'
@@ -13,6 +14,7 @@ import {
   IMAGE_INPUT_ACCEPT,
   type CompressionResult,
 } from '@/utils/image-upload'
+import { formatLocalDateInputValue } from '@/utils/date'
 import {
   createPublicPost,
   deletePublicPost,
@@ -26,10 +28,13 @@ import type {
   PublicPostChannel,
   PublicPostCreateRequest,
   PublicPostListItem,
+  PublicPostPageQuery,
 } from '@/types/public-post'
 
 const authStore = useAuthStore()
 const MOBILE_BREAKPOINT = 768
+type PublicPostSortType = NonNullable<PublicPostPageQuery['sortType']>
+const DEFAULT_SORT_TYPE: PublicPostSortType = 'tradeTimeDesc'
 
 const loading = ref(false)
 const items = ref<PublicPostListItem[]>([])
@@ -46,6 +51,7 @@ const filterCategory = ref<PublicPostCategory | 'all'>('all')
 const filterKeyword = ref('')
 const filterMinPrice = ref<number | null>(null)
 const filterMaxPrice = ref<number | null>(null)
+const sortType = ref<PublicPostSortType>(DEFAULT_SORT_TYPE)
 
 const dialogVisible = ref(false)
 const dialogTitle = ref('发布交易')
@@ -102,6 +108,7 @@ const loadData = async (page = 1) => {
     if (filterKeyword.value.trim()) params.keyword = filterKeyword.value.trim()
     if (filterMinPrice.value != null) params.minPrice = String(filterMinPrice.value)
     if (filterMaxPrice.value != null) params.maxPrice = String(filterMaxPrice.value)
+    if (sortType.value !== DEFAULT_SORT_TYPE) params.sortType = sortType.value
 
     const resp = await getPublicPostPage(params)
     items.value = resp.data.items
@@ -150,6 +157,12 @@ const handlePriceClear = () => {
   loadData(1)
 }
 
+const handleSortChange = (value: PublicPostSortType | 'default') => {
+  sortType.value = value === 'default' ? DEFAULT_SORT_TYPE : value
+  currentPage.value = 1
+  loadData(1)
+}
+
 const handlePageChange = (page: number) => {
   loadData(page)
   window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -181,7 +194,7 @@ const openEditDialog = (item: PublicPostListItem) => {
 const resetForm = () => {
   form.itemName = ''
   form.price = 0
-  form.tradeTime = new Date().toISOString().split('T')[0]
+  form.tradeTime = formatLocalDateInputValue()
   form.direction = 'sell'
   form.channel = 'xianyu'
   form.category = 'obi'
@@ -363,6 +376,7 @@ onBeforeUnmount(() => {
       :total-count="totalCount"
       :current-page="currentPage"
       :page-size="PAGE_SIZE"
+      :sort-type="sortType"
       :is-authenticated="authStore.isAuthenticated"
       :channel-options="channelOptions"
       :category-options="categoryOptions"
@@ -376,6 +390,7 @@ onBeforeUnmount(() => {
       @keyword-clear="handleKeywordClear"
       @price-search="handlePriceSearch"
       @price-clear="handlePriceClear"
+      @sort-change="handleSortChange"
       @filter-change="handleFilterChange"
       @edit="openEditDialog"
       @delete="handleDelete"
@@ -396,6 +411,7 @@ onBeforeUnmount(() => {
       :total-count="totalCount"
       :current-page="currentPage"
       :page-size="PAGE_SIZE"
+      :sort-type="sortType"
       :is-authenticated="authStore.isAuthenticated"
       :channel-options="channelOptions"
       :category-options="categoryOptions"
@@ -409,6 +425,7 @@ onBeforeUnmount(() => {
       @keyword-clear="handleKeywordClear"
       @price-search="handlePriceSearch"
       @price-clear="handlePriceClear"
+      @sort-change="handleSortChange"
       @filter-change="handleFilterChange"
       @edit="openEditDialog"
       @delete="handleDelete"
@@ -449,27 +466,21 @@ onBeforeUnmount(() => {
             </el-radio-group>
           </el-form-item>
           <el-form-item label="渠道">
-            <el-select v-model="form.channel">
-              <el-option
-                v-for="option in channelOptions.filter((item) => item.value !== 'all')"
-                :key="option.value"
-                :label="option.label"
-                :value="option.value"
-              />
-            </el-select>
+            <FormOptionButtonGroup
+              :model-value="form.channel"
+              :options="channelOptions.filter((item) => item.value !== 'all')"
+              @update:model-value="form.channel = $event as PublicPostChannel"
+            />
           </el-form-item>
         </div>
 
         <div class="public-zone-form__row">
           <el-form-item label="分类">
-            <el-select v-model="form.category">
-              <el-option
-                v-for="option in categoryOptions.filter((item) => item.value !== 'all')"
-                :key="option.value"
-                :label="option.label"
-                :value="option.value"
-              />
-            </el-select>
+            <FormOptionButtonGroup
+              :model-value="form.category"
+              :options="categoryOptions.filter((item) => item.value !== 'all')"
+              @update:model-value="form.category = $event as PublicPostCategory"
+            />
           </el-form-item>
         </div>
 

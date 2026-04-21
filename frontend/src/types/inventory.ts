@@ -3,7 +3,7 @@ import type { ApiResponse } from '@/types/auth'
 export type InventoryStatus = 'unsold' | 'sold'
 export type InventoryChannel = 'xianyu' | 'tieba' | 'other'
 export type InventoryCategory = 'magic' | 'obi'
-export type SortType = 'buyTimeDesc' | 'buyPriceDesc'
+export type SortType = 'buyTimeDesc' | 'buyPriceAsc' | 'buyPriceDesc'
 
 export interface InventoryListItem {
   id: number

@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { buildImagePreviewUrl } from '@/api/file'
 import PaginationBar from '@/components/common/PaginationBar.vue'
+import PriceSortToggle from '@/components/common/PriceSortToggle.vue'
 import SquareImagePreview from '@/components/common/SquareImagePreview.vue'
-import type { PublicPostCategory, PublicPostChannel, PublicPostListItem } from '@/types/public-post'
+import type { PublicPostCategory, PublicPostChannel, PublicPostListItem, PublicPostPageQuery } from '@/types/public-post'
+
+type PublicPostSortType = NonNullable<PublicPostPageQuery['sortType']>
 
 defineProps<{
   loading: boolean
@@ -17,6 +20,7 @@ defineProps<{
   filterKeyword: string
   filterMinPrice: number | null
   filterMaxPrice: number | null
+  sortType: PublicPostSortType
   isAuthenticated: boolean
   channelOptions: { label: string; value: PublicPostChannel | 'all' }[]
   categoryOptions: { label: string; value: PublicPostCategory | 'all' }[]
@@ -40,6 +44,7 @@ const emit = defineEmits<{
   (e: 'keyword-clear'): void
   (e: 'price-search'): void
   (e: 'price-clear'): void
+  (e: 'sort-change', value: PublicPostSortType | 'default'): void
   (e: 'filter-change'): void
   (e: 'edit', item: PublicPostListItem): void
   (e: 'delete', item: PublicPostListItem): void
@@ -97,6 +102,12 @@ const emit = defineEmits<{
 
       <div class="public-zone-mobile-filters__block">
         <span class="public-zone-mobile-filters__label">范围</span>
+        <PriceSortToggle
+          :model-value="sortType === 'tradeTimeDesc' ? 'default' : sortType"
+          asc-value="priceAsc"
+          desc-value="priceDesc"
+          @change="emit('sort-change', $event as PublicPostSortType | 'default')"
+        />
         <el-radio-group
           :model-value="filterScope"
           @update:model-value="emit('update:filterScope', $event); emit('filter-change')"

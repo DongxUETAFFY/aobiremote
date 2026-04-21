@@ -86,6 +86,36 @@ class InventoryItemServiceImplTest {
     }
 
     @Test
+    void pageWarehouseItemsSortsByBuyPriceAscendingAndDescending() {
+        Long userId = createUser();
+        insertInventoryItem(userId, "Middle Price", "obi", "unsold", "80.00");
+        insertInventoryItem(userId, "Lowest Price", "obi", "unsold", "20.00");
+        insertInventoryItem(userId, "Highest Price", "magic", "unsold", "150.00");
+
+        InventoryPageQuery ascendingQuery = new InventoryPageQuery();
+        ascendingQuery.setPageNo(1L);
+        ascendingQuery.setPageSize(30L);
+        ascendingQuery.setSortType("buyPriceAsc");
+
+        InventoryPageResponseVO ascendingResponse = inventoryItemService.pageWarehouseItems(userId, ascendingQuery);
+
+        assertThat(ascendingResponse.getItems())
+            .extracting("itemName")
+            .containsExactly("Lowest Price", "Middle Price", "Highest Price");
+
+        InventoryPageQuery descendingQuery = new InventoryPageQuery();
+        descendingQuery.setPageNo(1L);
+        descendingQuery.setPageSize(30L);
+        descendingQuery.setSortType("buyPriceDesc");
+
+        InventoryPageResponseVO descendingResponse = inventoryItemService.pageWarehouseItems(userId, descendingQuery);
+
+        assertThat(descendingResponse.getItems())
+            .extracting("itemName")
+            .containsExactly("Highest Price", "Middle Price", "Lowest Price");
+    }
+
+    @Test
     void batchDeleteInventoryItemsDeletesInBatchAndCleansPublicPosts() {
         Long userId = createUser();
         Long firstItemId = insertInventoryItem(userId, "Batch Inventory A", "obi", "unsold", "100.00");

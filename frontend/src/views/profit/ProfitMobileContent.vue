@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import type { TradeCategory, TradeChannel, TradeListItem, TradeSummary } from '@/types/trade'
+import type { SortType, TradeCategory, TradeChannel, TradeListItem, TradeSummary } from '@/types/trade'
 import SquareImagePreview from '@/components/common/SquareImagePreview.vue'
 import PaginationBar from '@/components/common/PaginationBar.vue'
+import PriceSortToggle from '@/components/common/PriceSortToggle.vue'
 
 defineProps<{
   loading: boolean
@@ -12,6 +13,7 @@ defineProps<{
   summaryTotalCount: number
   currentScope: 'all' | 'profit' | 'loss'
   currentCategory: TradeCategory | ''
+  sortType: SortType
   filterKeyword: string
   currentPage: number
   pageSize: number
@@ -28,6 +30,7 @@ const emit = defineEmits<{
   (e: 'update:filterKeyword', value: string): void
   (e: 'keyword-search'): void
   (e: 'keyword-clear'): void
+  (e: 'sort-change', value: SortType | 'default'): void
   (e: 'edit', item: TradeListItem): void
   (e: 'public-action', item: TradeListItem): void
   (e: 'delete', item: TradeListItem): void
@@ -100,6 +103,12 @@ const emit = defineEmits<{
         @clear="emit('keyword-clear')"
       />
       <el-button class="profit-mobile-search__button" @click="emit('keyword-search')">搜索</el-button>
+      <PriceSortToggle
+        :model-value="sortType === 'sellTimeDesc' ? 'default' : sortType"
+        asc-value="sellPriceAsc"
+        desc-value="sellPriceDesc"
+        @change="emit('sort-change', $event as SortType | 'default')"
+      />
     </section>
 
     <div v-if="loading" class="profit-loading">

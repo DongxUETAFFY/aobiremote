@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import FloatingQuickNav from '@/components/common/FloatingQuickNav.vue'
 import DesktopImageUploadArea from '@/components/common/DesktopImageUploadArea.vue'
+import FormOptionButtonGroup from '@/components/common/FormOptionButtonGroup.vue'
 import SquareImagePreview from '@/components/common/SquareImagePreview.vue'
 import ProfitDesktopContent from './ProfitDesktopContent.vue'
 import ProfitMobileContent from './ProfitMobileContent.vue'
@@ -13,6 +14,7 @@ import {
   IMAGE_INPUT_ACCEPT,
   type CompressionResult,
 } from '@/utils/image-upload'
+import { formatLocalDateInputValue } from '@/utils/date'
 import {
   createTradeItem,
   deleteTradeItem,
@@ -26,9 +28,11 @@ import type {
   TradeListItem,
   TradeSummary,
   TradeUpsertRequest,
+  SortType,
 } from '@/types/trade'
 
 const MOBILE_BREAKPOINT = 768
+const DEFAULT_SORT_TYPE: SortType = 'sellTimeDesc'
 
 const loading = ref(false)
 const items = ref<TradeListItem[]>([])
@@ -48,6 +52,7 @@ const currentScope = ref<'all' | 'profit' | 'loss'>('all')
 const currentPage = ref(1)
 const currentCategory = ref<TradeCategory | ''>('')
 const filterKeyword = ref('')
+const sortType = ref<SortType>(DEFAULT_SORT_TYPE)
 const isMobile = ref(false)
 
 const dialogVisible = ref(false)
@@ -104,6 +109,7 @@ const loadData = async (page = 1) => {
       keyword: filterKeyword.value.trim() || undefined,
       scope: currentScope.value,
       category: currentCategory.value || undefined,
+      sortType: sortType.value === DEFAULT_SORT_TYPE ? undefined : sortType.value,
     })
     items.value = resp.data.items
     totalCount.value = resp.data.totalCount
@@ -134,6 +140,11 @@ const handleKeywordSearch = () => {
 
 const handleKeywordClear = () => {
   filterKeyword.value = ''
+  loadData(1)
+}
+
+const handleSortChange = (value: SortType | 'default') => {
+  sortType.value = value === 'default' ? DEFAULT_SORT_TYPE : value
   loadData(1)
 }
 
@@ -169,7 +180,7 @@ const openEditDialog = (item: TradeListItem) => {
 const resetForm = () => {
   form.itemName = ''
   form.buyPrice = 0
-  form.buyTime = ''
+  form.buyTime = formatLocalDateInputValue()
   form.sellPrice = 0
   form.sellTime = ''
   form.channel = 'xianyu'
@@ -368,6 +379,7 @@ onBeforeUnmount(() => {
       :summary-total-count="summaryTotalCount"
       :current-scope="currentScope"
       :current-category="currentCategory"
+      :sort-type="sortType"
       :current-page="currentPage"
       :page-size="PAGE_SIZE"
       :format-date="formatDate"
@@ -379,6 +391,7 @@ onBeforeUnmount(() => {
       @category-filter="handleCategoryFilter"
       @keyword-search="handleKeywordSearch"
       @keyword-clear="handleKeywordClear"
+      @sort-change="handleSortChange"
       @edit="openEditDialog"
       @public-action="handlePublicAction"
       @delete="handleDelete"
@@ -395,6 +408,7 @@ onBeforeUnmount(() => {
       :summary-total-count="summaryTotalCount"
       :current-scope="currentScope"
       :current-category="currentCategory"
+      :sort-type="sortType"
       :current-page="currentPage"
       :page-size="PAGE_SIZE"
       :format-date="formatDate"
@@ -406,6 +420,7 @@ onBeforeUnmount(() => {
       @category-filter="handleCategoryFilter"
       @keyword-search="handleKeywordSearch"
       @keyword-clear="handleKeywordClear"
+      @sort-change="handleSortChange"
       @edit="openEditDialog"
       @public-action="handlePublicAction"
       @delete="handleDelete"
@@ -453,14 +468,18 @@ onBeforeUnmount(() => {
 
         <div class="profit-form__row">
           <el-form-item label="渠道">
-            <el-select v-model="form.channel">
-              <el-option v-for="option in channelOptions" :key="option.value" :label="option.label" :value="option.value" />
-            </el-select>
+            <FormOptionButtonGroup
+              :model-value="form.channel"
+              :options="channelOptions"
+              @update:model-value="form.channel = $event as TradeChannel"
+            />
           </el-form-item>
           <el-form-item label="分类">
-            <el-select v-model="form.category">
-              <el-option v-for="option in categoryOptions" :key="option.value" :label="option.label" :value="option.value" />
-            </el-select>
+            <FormOptionButtonGroup
+              :model-value="form.category"
+              :options="categoryOptions"
+              @update:model-value="form.category = $event as TradeCategory"
+            />
           </el-form-item>
         </div>
 

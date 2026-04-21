@@ -119,6 +119,38 @@ class TradeServiceImplTest {
     }
 
     @Test
+    void pageTradeItemsSortsBySellPriceAscendingAndDescending() {
+        Long userId = createUser();
+        insertTradeItem(userId, "Middle Sell Price", "obi", "30.00", "80.00");
+        insertTradeItem(userId, "Lowest Sell Price", "obi", "20.00", "35.00");
+        insertTradeItem(userId, "Highest Sell Price", "magic", "100.00", "160.00");
+
+        TradePageQuery ascendingQuery = new TradePageQuery();
+        ascendingQuery.setPageNo(1L);
+        ascendingQuery.setPageSize(30L);
+        ascendingQuery.setScope("all");
+        ascendingQuery.setSortType("sellPriceAsc");
+
+        TradePageResponseVO ascendingResponse = tradeService.pageTradeItems(userId, ascendingQuery);
+
+        assertThat(ascendingResponse.getItems())
+            .extracting("itemName")
+            .containsExactly("Lowest Sell Price", "Middle Sell Price", "Highest Sell Price");
+
+        TradePageQuery descendingQuery = new TradePageQuery();
+        descendingQuery.setPageNo(1L);
+        descendingQuery.setPageSize(30L);
+        descendingQuery.setScope("all");
+        descendingQuery.setSortType("sellPriceDesc");
+
+        TradePageResponseVO descendingResponse = tradeService.pageTradeItems(userId, descendingQuery);
+
+        assertThat(descendingResponse.getItems())
+            .extracting("itemName")
+            .containsExactly("Highest Sell Price", "Middle Sell Price", "Lowest Sell Price");
+    }
+
+    @Test
     void createTradeIncrementallyUpdatesExistingUserStats() {
         Long userId = createUser();
         insertUserStats(userId);

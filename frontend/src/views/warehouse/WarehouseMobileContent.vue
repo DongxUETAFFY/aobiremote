@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import type { InventoryCategory, InventoryChannel, InventoryListItem, InventorySummary } from '@/types/inventory'
+import type { InventoryCategory, InventoryChannel, InventoryListItem, InventorySummary, SortType } from '@/types/inventory'
 import SquareImagePreview from '@/components/common/SquareImagePreview.vue'
 import PaginationBar from '@/components/common/PaginationBar.vue'
+import PriceSortToggle from '@/components/common/PriceSortToggle.vue'
 
 const props = defineProps<{
   loading: boolean
@@ -10,6 +11,7 @@ const props = defineProps<{
   summary: InventorySummary
   summaryTotalCount: number
   currentCategory: InventoryCategory | ''
+  sortType: SortType
   filterKeyword: string
   currentPage: number
   pageSize: number
@@ -31,6 +33,7 @@ const emit = defineEmits<{
   (e: 'update:filterKeyword', value: string): void
   (e: 'keyword-search'): void
   (e: 'keyword-clear'): void
+  (e: 'sort-change', value: SortType | 'default'): void
   (e: 'toggle-select-all', checked: boolean | string | number): void
   (e: 'batch-public'): void
   (e: 'update:selectedIds', value: number[]): void
@@ -86,6 +89,12 @@ const emit = defineEmits<{
         @clear="emit('keyword-clear')"
       />
       <el-button class="warehouse-mobile-search__button" @click="emit('keyword-search')">搜索</el-button>
+      <PriceSortToggle
+        :model-value="sortType === 'buyTimeDesc' ? 'default' : sortType"
+        asc-value="buyPriceAsc"
+        desc-value="buyPriceDesc"
+        @change="emit('sort-change', $event as SortType | 'default')"
+      />
     </section>
 
     <div v-if="loading" class="warehouse-loading">

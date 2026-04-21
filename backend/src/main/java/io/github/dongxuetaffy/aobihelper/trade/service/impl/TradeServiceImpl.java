@@ -53,6 +53,8 @@ public class TradeServiceImpl extends ServiceImpl<InventoryItemMapper, Inventory
     private static final String SCOPE_LOSS = "loss";
     private static final String SORT_SELL_TIME_DESC = "sellTimeDesc";
     private static final String SORT_PROFIT_DESC = "profitDesc";
+    private static final String SORT_SELL_PRICE_ASC = "sellPriceAsc";
+    private static final String SORT_SELL_PRICE_DESC = "sellPriceDesc";
     private static final Set<String> ALLOWED_CHANNELS = Set.of("xianyu", "tieba", "other");
     private static final Set<String> ALLOWED_CATEGORIES = Set.of("magic", "obi");
     private static final long DEFAULT_PAGE_NO = 1L;
@@ -261,6 +263,14 @@ public class TradeServiceImpl extends ServiceImpl<InventoryItemMapper, Inventory
             wrapper.orderByDesc(InventoryItem::getProfitAmount)
                 .orderByDesc(InventoryItem::getSellTime)
                 .orderByDesc(InventoryItem::getUpdatedAt);
+            return;
+        }
+        if (SORT_SELL_PRICE_ASC.equals(sortType)) {
+            wrapper.orderByAsc(InventoryItem::getSellPrice).orderByDesc(InventoryItem::getUpdatedAt);
+            return;
+        }
+        if (SORT_SELL_PRICE_DESC.equals(sortType)) {
+            wrapper.orderByDesc(InventoryItem::getSellPrice).orderByDesc(InventoryItem::getUpdatedAt);
             return;
         }
         wrapper.orderByDesc(InventoryItem::getSellTime).orderByDesc(InventoryItem::getUpdatedAt);
@@ -472,7 +482,12 @@ public class TradeServiceImpl extends ServiceImpl<InventoryItemMapper, Inventory
         if (sortType == null || sortType.isBlank()) {
             return SORT_SELL_TIME_DESC;
         }
-        if (!SORT_SELL_TIME_DESC.equals(sortType) && !SORT_PROFIT_DESC.equals(sortType)) {
+        if (
+            !SORT_SELL_TIME_DESC.equals(sortType)
+                && !SORT_PROFIT_DESC.equals(sortType)
+                && !SORT_SELL_PRICE_ASC.equals(sortType)
+                && !SORT_SELL_PRICE_DESC.equals(sortType)
+        ) {
             throw new BusinessException(BusinessCode.PARAM_INVALID, "Unsupported sort type");
         }
         return sortType;

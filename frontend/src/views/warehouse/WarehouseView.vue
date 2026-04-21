@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import FloatingQuickNav from '@/components/common/FloatingQuickNav.vue'
 import DesktopImageUploadArea from '@/components/common/DesktopImageUploadArea.vue'
+import FormOptionButtonGroup from '@/components/common/FormOptionButtonGroup.vue'
 import SquareImagePreview from '@/components/common/SquareImagePreview.vue'
 import WarehouseDesktopContent from './WarehouseDesktopContent.vue'
 import WarehouseMobileContent from './WarehouseMobileContent.vue'
@@ -13,6 +14,7 @@ import {
   IMAGE_INPUT_ACCEPT,
   type CompressionResult,
 } from '@/utils/image-upload'
+import { formatLocalDateInputValue } from '@/utils/date'
 import {
   batchToggleInventoryPublic,
   createInventoryItem,
@@ -28,9 +30,11 @@ import type {
   InventoryListItem,
   InventorySummary,
   InventoryUpsertRequest,
+  SortType,
 } from '@/types/inventory'
 
 const MOBILE_BREAKPOINT = 768
+const DEFAULT_SORT_TYPE: SortType = 'buyTimeDesc'
 
 const loading = ref(false)
 const items = ref<InventoryListItem[]>([])
@@ -47,6 +51,7 @@ const currentPage = ref(1)
 const selectedIds = ref<number[]>([])
 const currentCategory = ref<InventoryCategory | ''>('')
 const filterKeyword = ref('')
+const sortType = ref<SortType>(DEFAULT_SORT_TYPE)
 const isMobile = ref(false)
 
 const dialogVisible = ref(false)
@@ -130,6 +135,7 @@ const loadData = async (page = 1) => {
       pageSize: PAGE_SIZE,
       keyword: filterKeyword.value.trim() || undefined,
       category: currentCategory.value || undefined,
+      sortType: sortType.value === DEFAULT_SORT_TYPE ? undefined : sortType.value,
     })
     items.value = resp.data.items
     totalCount.value = resp.data.totalCount
@@ -164,6 +170,12 @@ const handleKeywordClear = () => {
   loadData(1)
 }
 
+const handleSortChange = (value: SortType | 'default') => {
+  sortType.value = value === 'default' ? DEFAULT_SORT_TYPE : value
+  selectedIds.value = []
+  loadData(1)
+}
+
 const openAddDialog = () => {
   dialogTitle.value = '新增记录'
   editingId.value = null
@@ -189,7 +201,7 @@ const openEditDialog = (item: InventoryListItem) => {
 const resetForm = () => {
   form.itemName = ''
   form.buyPrice = 0
-  form.buyTime = ''
+  form.buyTime = formatLocalDateInputValue()
   form.channel = 'xianyu'
   form.category = 'obi'
   form.remark = ''
@@ -308,7 +320,7 @@ const handleDelete = async (item: InventoryListItem) => {
 const handleOpenSoldDialog = (item: InventoryListItem) => {
   soldItemId.value = item.id
   soldForm.sellPrice = item.buyPrice
-  soldForm.sellTime = new Date().toISOString().split('T')[0]
+  soldForm.sellTime = formatLocalDateInputValue()
   soldDialogVisible.value = true
 }
 
@@ -435,6 +447,7 @@ onBeforeUnmount(() => {
       :summary="summary"
       :summary-total-count="summaryTotalCount"
       :current-category="currentCategory"
+      :sort-type="sortType"
       :current-page="currentPage"
       :page-size="PAGE_SIZE"
       :selected-selectable-ids="selectedSelectableIds"
@@ -450,6 +463,7 @@ onBeforeUnmount(() => {
       @category-filter="handleCategoryFilter"
       @keyword-search="handleKeywordSearch"
       @keyword-clear="handleKeywordClear"
+      @sort-change="handleSortChange"
       @toggle-select-all="handleToggleSelectAll"
       @batch-public="handleBatchPublic"
       @edit="openEditDialog"
@@ -468,6 +482,7 @@ onBeforeUnmount(() => {
       :summary="summary"
       :summary-total-count="summaryTotalCount"
       :current-category="currentCategory"
+      :sort-type="sortType"
       :current-page="currentPage"
       :page-size="PAGE_SIZE"
       :selected-selectable-ids="selectedSelectableIds"
@@ -483,6 +498,7 @@ onBeforeUnmount(() => {
       @category-filter="handleCategoryFilter"
       @keyword-search="handleKeywordSearch"
       @keyword-clear="handleKeywordClear"
+      @sort-change="handleSortChange"
       @toggle-select-all="handleToggleSelectAll"
       @batch-public="handleBatchPublic"
       @edit="openEditDialog"
@@ -519,24 +535,18 @@ onBeforeUnmount(() => {
 
         <div class="warehouse-form__row">
           <el-form-item label="渠道">
-            <el-select v-model="form.channel">
-              <el-option
-                v-for="option in channelOptions"
-                :key="option.value"
-                :label="option.label"
-                :value="option.value"
-              />
-            </el-select>
+            <FormOptionButtonGroup
+              :model-value="form.channel"
+              :options="channelOptions"
+              @update:model-value="form.channel = $event as InventoryChannel"
+            />
           </el-form-item>
           <el-form-item label="分类">
-            <el-select v-model="form.category">
-              <el-option
-                v-for="option in categoryOptions"
-                :key="option.value"
-                :label="option.label"
-                :value="option.value"
-              />
-            </el-select>
+            <FormOptionButtonGroup
+              :model-value="form.category"
+              :options="categoryOptions"
+              @update:model-value="form.category = $event as InventoryCategory"
+            />
           </el-form-item>
         </div>
 

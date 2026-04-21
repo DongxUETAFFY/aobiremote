@@ -3,7 +3,7 @@ import type { ApiResponse } from '@/types/auth'
 export type TradeStatus = 'unsold' | 'sold'
 export type TradeChannel = 'xianyu' | 'tieba' | 'other'
 export type TradeCategory = 'magic' | 'obi'
-export type SortType = 'sellTimeDesc' | 'profitDesc'
+export type SortType = 'sellTimeDesc' | 'profitDesc' | 'sellPriceAsc' | 'sellPriceDesc'
 
 export interface TradeListItem {
   id: number
