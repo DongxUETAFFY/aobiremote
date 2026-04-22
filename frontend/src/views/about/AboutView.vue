@@ -10,8 +10,8 @@ type AboutItem = {
   desc: string
 }
 
-const version = 'v1.0.6'
-const updatedAt = '2026-04-20'
+const version = 'v1.0.7'
+const updatedAt = '2026-04-21'
 const rewardImageUrl = '/reward-code.png'
 
 const aboutItems: AboutItem[] = [
@@ -50,6 +50,13 @@ const creatorText = [
 
 const changeLogText = [
   '更新日志',
+  '',
+  '2026-04-21 v1.0.7',
+  '1. 仓库、盈亏统计和公开交易区支持按价格从低到高或从高到低排序。',
+  '2. 新增记录时，分类可直接点击按钮选择，减少操作步骤。',
+  '3. 买入日期默认填入当天，新增记录更省心。',
+  '4. 优化电脑端顶部和筛选区排版，搜索、排序和筛选更清楚。',
+  '5. 公开交易区电脑端的渠道和分类改为直接点击筛选。',
   '',
   '2026-04-20 v1.0.6',
   '1. 管理员端公开交易图片改成更清晰的大卡片显示，查看更方便。',
