@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { h } from 'vue'
 import { ElImage, ElMessageBox } from 'element-plus'
+import { APP_UPDATED_AT, APP_VERSION } from '@/constants/app-meta'
 
 type AboutItemKey = 'version' | 'creator' | 'log' | 'reward'
 
@@ -10,8 +11,8 @@ type AboutItem = {
   desc: string
 }
 
-const version = 'v1.0.7'
-const updatedAt = '2026-04-21'
+const version = APP_VERSION
+const updatedAt = APP_UPDATED_AT
 const rewardImageUrl = '/reward-code.png'
 
 const aboutItems: AboutItem[] = [
@@ -37,19 +38,14 @@ const aboutItems: AboutItem[] = [
   },
 ]
 
-const creatorText = [
-  '这个小助手是为奥比岛玩家日常记账和整理物品信息做的。',
-  '',
-  '它会持续围绕几个方向打磨：',
-  '1. 记账流程更顺手',
-  '2. 图片和物品信息更好管理',
-  '3. 公开交易区浏览体验更清楚',
-  '',
-  '感谢每一次反馈和建议，它们都会直接影响后续更新。',
-].join('\n')
+const creatorText = '本网页由 贴吧id：鹤箫雪 游戏id：纯在做梦 为爱发电、独立开发完成，全程免费。'
 
 const changeLogText = [
   '更新日志',
+  '',
+  '2026-04-30 v1.0.8',
+  '1. 手机端物品图片点开后支持更方便地保存，长按即可保存到本地。',
+  '2. 我的仓库新增拼图模式，可跨页挑选最多 20 张有图物品，生成白底拼图并保存到本地。',
   '',
   '2026-04-21 v1.0.7',
   '1. 仓库、盈亏统计和公开交易区支持按价格从低到高或从高到低排序。',

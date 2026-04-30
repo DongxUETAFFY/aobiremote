@@ -20,7 +20,16 @@ const props = defineProps<{
   allSelectableChecked: boolean
   hasSelectableItems: boolean
   batchPublicLoading: boolean
+  isCollageMode: boolean
+  collageSelectedIds: number[]
+  collageSelectionLimit: number
+  collageLayoutMode: 'auto' | '3' | '4' | '5'
+  collageSelectedCount: number
+  collageGenerating: boolean
+  canSelectMoreForCollage: boolean
   isBatchPublicSelectable: (item: InventoryListItem) => boolean
+  isCollageSelectable: (item: InventoryListItem) => boolean
+  isCollageSelected: (itemId: number) => boolean
   formatDate: (value: string) => string
   channelLabel: (value: InventoryChannel) => string
   categoryLabel: (value: InventoryCategory) => string
@@ -37,11 +46,37 @@ const emit = defineEmits<{
   (e: 'toggle-select-all', checked: boolean | string | number): void
   (e: 'batch-public'): void
   (e: 'update:selectedIds', value: number[]): void
+  (e: 'toggle-collage-item', item: InventoryListItem, checked: boolean | string | number): void
+  (e: 'clear-collage-selection'): void
+  (e: 'collage-layout-change', value: 'auto' | '3' | '4' | '5'): void
+  (e: 'generate-collage'): void
+  (e: 'exit-collage-mode'): void
   (e: 'edit', item: InventoryListItem): void
   (e: 'open-sold', item: InventoryListItem): void
   (e: 'public-action', item: InventoryListItem): void
   (e: 'delete', item: InventoryListItem): void
 }>()
+
+const toggleItemSelection = (itemId: number, checked: boolean | string | number) => {
+  if (checked) {
+    emit('update:selectedIds', [...new Set([...props.selectedIds, itemId])])
+    return
+  }
+  emit(
+    'update:selectedIds',
+    props.selectedIds.filter((id) => id !== itemId),
+  )
+}
+
+const collageSelectionText = (item: InventoryListItem) => {
+  if (!item.imageFileId) {
+    return '无图不可拼图'
+  }
+  if (!props.canSelectMoreForCollage && !props.isCollageSelected(item.id)) {
+    return `已达上限 (${props.collageSelectionLimit})`
+  }
+  return '加入拼图'
+}
 </script>
 
 <template>
@@ -131,6 +166,60 @@ const emit = defineEmits<{
         <p class="warehouse-mobile-batch__hint">仅支持选择未卖出且未公开的物品，避免误触取消公开。</p>
       </section>
 
+      <section v-if="isCollageMode" class="warehouse-mobile-collage ah-glass-card ah-page-section">
+        <div class="warehouse-mobile-collage__summary">
+          <span class="warehouse-mobile-collage__count">
+            已选 {{ collageSelectedCount }} / {{ collageSelectionLimit }} 张
+          </span>
+          <el-button size="small" @click="emit('clear-collage-selection')">清空</el-button>
+        </div>
+        <div class="warehouse-mobile-collage__layout">
+          <el-button
+            size="small"
+            :type="collageLayoutMode === 'auto' ? 'primary' : 'default'"
+            @click="emit('collage-layout-change', 'auto')"
+          >
+            自动
+          </el-button>
+          <el-button
+            size="small"
+            :type="collageLayoutMode === '3' ? 'primary' : 'default'"
+            @click="emit('collage-layout-change', '3')"
+          >
+            每行3张
+          </el-button>
+          <el-button
+            size="small"
+            :type="collageLayoutMode === '4' ? 'primary' : 'default'"
+            @click="emit('collage-layout-change', '4')"
+          >
+            每行4张
+          </el-button>
+          <el-button
+            size="small"
+            :type="collageLayoutMode === '5' ? 'primary' : 'default'"
+            @click="emit('collage-layout-change', '5')"
+          >
+            每行5张
+          </el-button>
+        </div>
+        <div class="warehouse-mobile-collage__actions">
+          <el-button
+            class="warehouse-mobile-collage__generate"
+            type="success"
+            :disabled="!collageSelectedCount"
+            :loading="collageGenerating"
+            @click="emit('generate-collage')"
+          >
+            生成拼图
+          </el-button>
+          <el-button type="warning" plain @click="emit('exit-collage-mode')">退出拼图模式</el-button>
+        </div>
+        <p class="warehouse-mobile-collage__hint">
+          拼图选择支持跨页保留；退出拼图模式后会清空已选内容。
+        </p>
+      </section>
+
       <div class="warehouse-pagination ah-glass-card">
         <PaginationBar
           :current="currentPage"
@@ -141,25 +230,33 @@ const emit = defineEmits<{
         />
       </div>
 
-      <el-checkbox-group
-        :model-value="selectedIds"
-        class="warehouse-list__group"
-        @update:model-value="emit('update:selectedIds', $event)"
-      >
+      <div class="warehouse-list__group">
         <article
           v-for="item in items"
           :key="item.id"
           class="warehouse-mobile-item ah-glass-card ah-page-section"
         >
           <div class="warehouse-mobile-item__selection">
-            <el-checkbox :label="item.id" :disabled="!isBatchPublicSelectable(item)">
+            <el-checkbox
+              :model-value="selectedIds.includes(item.id)"
+              :disabled="!isBatchPublicSelectable(item)"
+              @change="toggleItemSelection(item.id, $event)"
+            >
               {{
                 isBatchPublicSelectable(item)
                   ? '加入批量公开'
                   : item.publicPosted
                     ? '已公开，不可批量公开'
-                    : '已卖出，不可批量公开'
+                  : '已卖出，不可批量公开'
               }}
+            </el-checkbox>
+            <el-checkbox
+              v-if="isCollageMode"
+              :model-value="isCollageSelected(item.id)"
+              :disabled="!isCollageSelectable(item) || (!canSelectMoreForCollage && !isCollageSelected(item.id))"
+              @change="emit('toggle-collage-item', item, $event)"
+            >
+              {{ collageSelectionText(item) }}
             </el-checkbox>
           </div>
 
@@ -200,7 +297,7 @@ const emit = defineEmits<{
             <el-button type="danger" @click="emit('delete', item)">删除</el-button>
           </div>
         </article>
-      </el-checkbox-group>
+      </div>
 
       <div class="warehouse-pagination ah-glass-card">
         <PaginationBar
@@ -374,6 +471,39 @@ const emit = defineEmits<{
   font-size: 13px;
 }
 
+.warehouse-mobile-collage {
+  display: grid;
+  gap: 10px;
+}
+
+.warehouse-mobile-collage__summary,
+.warehouse-mobile-collage__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.warehouse-mobile-collage__count {
+  color: var(--ah-title);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.warehouse-mobile-collage__layout {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.warehouse-mobile-collage__hint {
+  margin: 0;
+  color: #8d7080;
+  font-size: 13px;
+}
+
 .warehouse-pagination {
   padding: 8px 0;
 }
@@ -385,6 +515,10 @@ const emit = defineEmits<{
 
 .warehouse-mobile-item__selection {
   width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .warehouse-mobile-item__top {

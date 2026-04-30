@@ -20,7 +20,16 @@ const props = defineProps<{
   allSelectableChecked: boolean
   hasSelectableItems: boolean
   batchPublicLoading: boolean
+  isCollageMode: boolean
+  collageSelectedIds: number[]
+  collageSelectionLimit: number
+  collageLayoutMode: 'auto' | '3' | '4' | '5'
+  collageSelectedCount: number
+  collageGenerating: boolean
+  canSelectMoreForCollage: boolean
   isBatchPublicSelectable: (item: InventoryListItem) => boolean
+  isCollageSelectable: (item: InventoryListItem) => boolean
+  isCollageSelected: (itemId: number) => boolean
   formatDate: (value: string) => string
   channelLabel: (value: InventoryChannel) => string
   categoryLabel: (value: InventoryCategory) => string
@@ -37,6 +46,11 @@ const emit = defineEmits<{
   (e: 'toggle-select-all', checked: boolean | string | number): void
   (e: 'batch-public'): void
   (e: 'update:selectedIds', value: number[]): void
+  (e: 'toggle-collage-item', item: InventoryListItem, checked: boolean | string | number): void
+  (e: 'clear-collage-selection'): void
+  (e: 'collage-layout-change', value: 'auto' | '3' | '4' | '5'): void
+  (e: 'generate-collage'): void
+  (e: 'exit-collage-mode'): void
   (e: 'edit', item: InventoryListItem): void
   (e: 'open-sold', item: InventoryListItem): void
   (e: 'public-action', item: InventoryListItem): void
@@ -52,6 +66,20 @@ const toggleItemSelection = (itemId: number, checked: boolean | string | number)
     'update:selectedIds',
     props.selectedIds.filter((id) => id !== itemId),
   )
+}
+
+const toggleCollageSelection = (item: InventoryListItem, checked: boolean | string | number) => {
+  emit('toggle-collage-item', item, checked)
+}
+
+const collageSelectionText = (item: InventoryListItem) => {
+  if (!item.imageFileId) {
+    return '无图不可拼图'
+  }
+  if (!props.canSelectMoreForCollage && !props.isCollageSelected(item.id)) {
+    return `已达上限 (${props.collageSelectionLimit})`
+  }
+  return '加入拼图'
 }
 </script>
 
@@ -162,6 +190,64 @@ const toggleItemSelection = (itemId: number, checked: boolean | string | number)
         <p class="warehouse-batch__hint">仅支持选择未卖出且未公开的物品，避免误触取消公开。</p>
       </section>
 
+      <section v-if="isCollageMode" class="warehouse-collage ah-glass-card ah-page-section">
+        <div class="warehouse-collage__toolbar">
+          <div class="warehouse-collage__main">
+            <span class="warehouse-collage__count">
+              已选 {{ collageSelectedCount }} / {{ collageSelectionLimit }} 张
+            </span>
+            <div class="warehouse-collage__layout">
+              <el-button
+                size="small"
+                :type="collageLayoutMode === 'auto' ? 'primary' : 'default'"
+                @click="emit('collage-layout-change', 'auto')"
+              >
+                自动
+              </el-button>
+              <el-button
+                size="small"
+                :type="collageLayoutMode === '3' ? 'primary' : 'default'"
+                @click="emit('collage-layout-change', '3')"
+              >
+                每行3张
+              </el-button>
+              <el-button
+                size="small"
+                :type="collageLayoutMode === '4' ? 'primary' : 'default'"
+                @click="emit('collage-layout-change', '4')"
+              >
+                每行4张
+              </el-button>
+              <el-button
+                size="small"
+                :type="collageLayoutMode === '5' ? 'primary' : 'default'"
+                @click="emit('collage-layout-change', '5')"
+              >
+                每行5张
+              </el-button>
+            </div>
+          </div>
+          <div class="warehouse-collage__actions">
+            <el-button size="small" @click="emit('clear-collage-selection')">清空</el-button>
+            <el-button
+              size="small"
+              type="success"
+              :disabled="!collageSelectedCount"
+              :loading="collageGenerating"
+              @click="emit('generate-collage')"
+            >
+              生成拼图
+            </el-button>
+            <el-button size="small" type="warning" plain @click="emit('exit-collage-mode')">
+              退出拼图模式
+            </el-button>
+          </div>
+        </div>
+        <p class="warehouse-collage__hint">
+          拼图选择支持跨页、跨搜索和跨排序保留；退出拼图模式后会清空已选内容。
+        </p>
+      </section>
+
       <div class="warehouse-pagination ah-glass-card">
         <PaginationBar
           :current="currentPage"
@@ -176,7 +262,7 @@ const toggleItemSelection = (itemId: number, checked: boolean | string | number)
         :key="item.id"
         class="warehouse-item ah-glass-card ah-page-section"
       >
-        <div class="warehouse-item__selection">
+        <div class="warehouse-item__selection" :class="{ 'is-collage-mode': isCollageMode }">
           <el-checkbox
             :model-value="selectedIds.includes(item.id)"
             :disabled="!isBatchPublicSelectable(item)"
@@ -189,6 +275,14 @@ const toggleItemSelection = (itemId: number, checked: boolean | string | number)
                   ? '已公开，不可批量公开'
                   : '已卖出，不可批量公开'
             }}
+          </el-checkbox>
+          <el-checkbox
+            v-if="isCollageMode"
+            :model-value="isCollageSelected(item.id)"
+            :disabled="!isCollageSelectable(item) || (!canSelectMoreForCollage && !isCollageSelected(item.id))"
+            @change="toggleCollageSelection(item, $event)"
+          >
+            {{ collageSelectionText(item) }}
           </el-checkbox>
         </div>
 
@@ -379,6 +473,44 @@ const toggleItemSelection = (itemId: number, checked: boolean | string | number)
   font-size: 13px;
 }
 
+.warehouse-collage {
+  display: grid;
+  gap: 14px;
+}
+
+.warehouse-collage__toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.warehouse-collage__main {
+  display: grid;
+  gap: 10px;
+}
+
+.warehouse-collage__count {
+  color: var(--ah-title);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.warehouse-collage__layout,
+.warehouse-collage__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.warehouse-collage__hint {
+  margin: 0;
+  color: #8d7080;
+  font-size: 13px;
+}
+
 .warehouse-search {
   position: relative;
   overflow: hidden;
@@ -508,6 +640,13 @@ const toggleItemSelection = (itemId: number, checked: boolean | string | number)
 
 .warehouse-item__selection {
   width: 100%;
+}
+
+.warehouse-item__selection.is-collage-mode {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .warehouse-item__thumb {

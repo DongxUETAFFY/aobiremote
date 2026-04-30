@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { APP_UPDATED_AT, APP_VERSION } from '@/constants/app-meta'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 
@@ -19,6 +20,8 @@ const navItems = computed(() => [
 
 const currentTitle = computed(() => String(route.meta.title || appStore.appName))
 const currentUserLabel = computed(() => authStore.user?.nickname || authStore.user?.email || '游客')
+const versionLabel = APP_VERSION
+const updatedAtLabel = APP_UPDATED_AT
 
 const goTo = (path: string) => {
   router.push(path)
@@ -37,6 +40,10 @@ const handleLogout = async () => {
         <span class="layout-hero__orb layout-hero__orb--pink" aria-hidden="true"></span>
         <span class="layout-hero__orb layout-hero__orb--gold" aria-hidden="true"></span>
         <div class="layout-hero__actions">
+          <div class="layout-hero__meta" aria-label="version-meta">
+            <span class="layout-hero__meta-version">{{ versionLabel }}</span>
+            <span class="layout-hero__meta-date">更新于 {{ updatedAtLabel }}</span>
+          </div>
           <template v-if="authStore.isAuthenticated">
             <div class="layout-hero__account-chip">
               <span class="layout-hero__user">{{ currentUserLabel }}</span>
@@ -178,6 +185,29 @@ const handleLogout = async () => {
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.layout-hero__meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  text-align: right;
+  color: #8b6376;
+}
+
+.layout-hero__meta-version {
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.layout-hero__meta-date {
+  font-size: 11px;
+  line-height: 1.1;
+  color: var(--ah-muted);
 }
 
 .layout-hero__copy {
@@ -375,6 +405,10 @@ const handleLogout = async () => {
     margin-bottom: 8px;
   }
 
+  .layout-hero__meta {
+    align-items: flex-end;
+  }
+
   .layout-hero__account-chip {
     margin-left: auto;
   }
@@ -406,6 +440,22 @@ const handleLogout = async () => {
 
   .layout-hero__actions {
     margin-bottom: 0;
+    width: 100%;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  .layout-hero__meta {
+    gap: 1px;
+    text-align: right;
+  }
+
+  .layout-hero__meta-version {
+    font-size: 10px;
+  }
+
+  .layout-hero__meta-date {
+    font-size: 9px;
   }
 
   .layout-hero__account-chip {

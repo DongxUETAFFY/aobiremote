@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import CollagePreviewDialog from '@/components/common/CollagePreviewDialog.vue'
 import FloatingQuickNav from '@/components/common/FloatingQuickNav.vue'
 import DesktopImageUploadArea from '@/components/common/DesktopImageUploadArea.vue'
 import FormOptionButtonGroup from '@/components/common/FormOptionButtonGroup.vue'
@@ -14,6 +15,8 @@ import {
   IMAGE_INPUT_ACCEPT,
   type CompressionResult,
 } from '@/utils/image-upload'
+import { getImagePreviewObjectUrl } from '@/utils/image-preview-cache'
+import { renderCollageImage } from '@/utils/warehouse-collage'
 import { formatLocalDateInputValue } from '@/utils/date'
 import {
   batchToggleInventoryPublic,
@@ -35,6 +38,7 @@ import type {
 
 const MOBILE_BREAKPOINT = 768
 const DEFAULT_SORT_TYPE: SortType = 'buyTimeDesc'
+const COLLAGE_SELECTION_LIMIT = 20
 
 const loading = ref(false)
 const items = ref<InventoryListItem[]>([])
@@ -53,6 +57,12 @@ const currentCategory = ref<InventoryCategory | ''>('')
 const filterKeyword = ref('')
 const sortType = ref<SortType>(DEFAULT_SORT_TYPE)
 const isMobile = ref(false)
+const isCollageMode = ref(false)
+const collageSelectedMap = ref<Record<number, InventoryListItem>>({})
+const collageLayoutMode = ref<'auto' | '3' | '4' | '5'>('auto')
+const collageGenerating = ref(false)
+const collagePreviewUrl = ref('')
+const collagePreviewVisible = ref(false)
 
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增记录')
@@ -125,6 +135,39 @@ const allSelectableChecked = computed(
 )
 
 const summaryTotalCount = computed(() => summary.value.obiCount + summary.value.magicCount)
+const collageSelectedIds = computed(() =>
+  Object.keys(collageSelectedMap.value).map((id) => Number(id)),
+)
+const collageSelectedItems = computed(() => Object.values(collageSelectedMap.value))
+const collageSelectedCount = computed(() => collageSelectedItems.value.length)
+const canSelectMoreForCollage = computed(
+  () => collageSelectedCount.value < COLLAGE_SELECTION_LIMIT,
+)
+
+const isCollageSelectable = (item: InventoryListItem) => Boolean(item.imageFileId)
+
+const isCollageSelected = (itemId: number) => itemId in collageSelectedMap.value
+
+const releaseCollagePreviewUrl = () => {
+  if (collagePreviewUrl.value) {
+    URL.revokeObjectURL(collagePreviewUrl.value)
+    collagePreviewUrl.value = ''
+  }
+}
+
+const clearCollageSelection = () => {
+  collageSelectedMap.value = {}
+  collagePreviewVisible.value = false
+  releaseCollagePreviewUrl()
+}
+
+const exitCollageMode = () => {
+  isCollageMode.value = false
+  collageLayoutMode.value = 'auto'
+  collagePreviewVisible.value = false
+  clearCollageSelection()
+  releaseCollagePreviewUrl()
+}
 
 const loadData = async (page = 1) => {
   loading.value = true
@@ -143,6 +186,20 @@ const loadData = async (page = 1) => {
     selectedIds.value = selectedIds.value.filter((id) =>
       items.value.some((item) => item.id === id && isBatchPublicSelectable(item)),
     )
+    if (collageSelectedCount.value) {
+      const nextSelectedMap = { ...collageSelectedMap.value }
+      items.value.forEach((item) => {
+        if (!nextSelectedMap[item.id]) {
+          return
+        }
+        if (isCollageSelectable(item)) {
+          nextSelectedMap[item.id] = item
+        } else {
+          delete nextSelectedMap[item.id]
+        }
+      })
+      collageSelectedMap.value = nextSelectedMap
+    }
   } catch (error: any) {
     ElMessage.error(error?.response?.data?.message || '加载失败')
   } finally {
@@ -174,6 +231,76 @@ const handleSortChange = (value: SortType | 'default') => {
   sortType.value = value === 'default' ? DEFAULT_SORT_TYPE : value
   selectedIds.value = []
   loadData(1)
+}
+
+const handleToggleCollageMode = () => {
+  if (isCollageMode.value) {
+    exitCollageMode()
+    return
+  }
+  isCollageMode.value = true
+}
+
+const handleToggleCollageItem = (item: InventoryListItem, checked: boolean | string | number) => {
+  const normalizedChecked = Boolean(checked)
+
+  if (!normalizedChecked) {
+    const nextSelectedMap = { ...collageSelectedMap.value }
+    delete nextSelectedMap[item.id]
+    collageSelectedMap.value = nextSelectedMap
+    return
+  }
+
+  if (!isCollageSelectable(item)) {
+    ElMessage.warning('无图物品不能加入拼图')
+    return
+  }
+
+  if (!canSelectMoreForCollage.value && !isCollageSelected(item.id)) {
+    ElMessage.warning(`最多只能选择 ${COLLAGE_SELECTION_LIMIT} 张图片`)
+    return
+  }
+
+  collageSelectedMap.value = {
+    ...collageSelectedMap.value,
+    [item.id]: item,
+  }
+}
+
+const handleCollageLayoutChange = (value: 'auto' | '3' | '4' | '5') => {
+  collageLayoutMode.value = value
+}
+
+const handleGenerateCollage = async () => {
+  if (!collageSelectedCount.value) {
+    ElMessage.warning('请先选择至少 1 张图片')
+    return
+  }
+
+  collageGenerating.value = true
+  try {
+    const collageSources = await Promise.all(
+      collageSelectedItems.value.map(async (item) => {
+        if (!item.imageFileId) {
+          throw new Error('存在缺少图片的物品')
+        }
+        const imageUrl = await getImagePreviewObjectUrl(item.imageFileId)
+        return { imageUrl }
+      }),
+    )
+
+    releaseCollagePreviewUrl()
+    const result = await renderCollageImage({
+      items: collageSources,
+      mode: collageLayoutMode.value,
+    })
+    collagePreviewUrl.value = result.objectUrl
+    collagePreviewVisible.value = true
+  } catch (error: any) {
+    ElMessage.error(error?.message || '拼图生成失败，请重试')
+  } finally {
+    collageGenerating.value = false
+  }
 }
 
 const openAddDialog = () => {
@@ -308,6 +435,11 @@ const handleDelete = async (item: InventoryListItem) => {
       type: 'warning',
     })
     await deleteInventoryItem(item.id, `req_${Date.now()}`)
+    if (isCollageSelected(item.id)) {
+      const nextSelectedMap = { ...collageSelectedMap.value }
+      delete nextSelectedMap[item.id]
+      collageSelectedMap.value = nextSelectedMap
+    }
     ElMessage.success('删除成功')
     await loadData(currentPage.value)
   } catch (error: any) {
@@ -432,6 +564,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('scroll', handleScroll)
   window.removeEventListener('resize', handleResize)
+  releaseCollagePreviewUrl()
 })
 </script>
 
@@ -454,7 +587,16 @@ onBeforeUnmount(() => {
       :all-selectable-checked="allSelectableChecked"
       :has-selectable-items="hasSelectableItems"
       :batch-public-loading="batchPublicLoading"
+      :is-collage-mode="isCollageMode"
+      :collage-selected-ids="collageSelectedIds"
+      :collage-selection-limit="COLLAGE_SELECTION_LIMIT"
+      :collage-layout-mode="collageLayoutMode"
+      :collage-selected-count="collageSelectedCount"
+      :collage-generating="collageGenerating"
+      :can-select-more-for-collage="canSelectMoreForCollage"
       :is-batch-public-selectable="isBatchPublicSelectable"
+      :is-collage-selectable="isCollageSelectable"
+      :is-collage-selected="isCollageSelected"
       :format-date="formatDate"
       :channel-label="channelLabel"
       :category-label="categoryLabel"
@@ -466,6 +608,11 @@ onBeforeUnmount(() => {
       @sort-change="handleSortChange"
       @toggle-select-all="handleToggleSelectAll"
       @batch-public="handleBatchPublic"
+      @toggle-collage-item="handleToggleCollageItem"
+      @clear-collage-selection="clearCollageSelection"
+      @collage-layout-change="handleCollageLayoutChange"
+      @generate-collage="handleGenerateCollage"
+      @exit-collage-mode="exitCollageMode"
       @edit="openEditDialog"
       @open-sold="handleOpenSoldDialog"
       @public-action="handlePublicAction"
@@ -489,7 +636,16 @@ onBeforeUnmount(() => {
       :all-selectable-checked="allSelectableChecked"
       :has-selectable-items="hasSelectableItems"
       :batch-public-loading="batchPublicLoading"
+      :is-collage-mode="isCollageMode"
+      :collage-selected-ids="collageSelectedIds"
+      :collage-selection-limit="COLLAGE_SELECTION_LIMIT"
+      :collage-layout-mode="collageLayoutMode"
+      :collage-selected-count="collageSelectedCount"
+      :collage-generating="collageGenerating"
+      :can-select-more-for-collage="canSelectMoreForCollage"
       :is-batch-public-selectable="isBatchPublicSelectable"
+      :is-collage-selectable="isCollageSelectable"
+      :is-collage-selected="isCollageSelected"
       :format-date="formatDate"
       :channel-label="channelLabel"
       :category-label="categoryLabel"
@@ -501,6 +657,11 @@ onBeforeUnmount(() => {
       @sort-change="handleSortChange"
       @toggle-select-all="handleToggleSelectAll"
       @batch-public="handleBatchPublic"
+      @toggle-collage-item="handleToggleCollageItem"
+      @clear-collage-selection="clearCollageSelection"
+      @collage-layout-change="handleCollageLayoutChange"
+      @generate-collage="handleGenerateCollage"
+      @exit-collage-mode="exitCollageMode"
       @edit="openEditDialog"
       @open-sold="handleOpenSoldDialog"
       @public-action="handlePublicAction"
@@ -640,11 +801,29 @@ onBeforeUnmount(() => {
       </template>
     </el-dialog>
 
+    <CollagePreviewDialog
+      v-model:visible="collagePreviewVisible"
+      :image-url="collagePreviewUrl"
+      :layout-mode="collageLayoutMode"
+      :selected-count="collageSelectedCount"
+      :mobile="isMobile"
+      :generating="collageGenerating"
+    />
+
     <transition name="fab">
       <button v-if="showBackToTop" class="fab fab--top" type="button" title="回顶部" @click="scrollToTop">
         ↑
       </button>
     </transition>
+    <button
+      class="fab fab--collage"
+      :class="{ 'is-active': isCollageMode }"
+      type="button"
+      title="拼图模式"
+      @click="handleToggleCollageMode"
+    >
+      拼
+    </button>
     <button class="fab fab--add" type="button" title="新增记录" @click="openAddDialog">
       +
     </button>
@@ -742,9 +921,28 @@ onBeforeUnmount(() => {
   background: #fff;
 }
 
+.fab--collage {
+  bottom: 160px;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--ah-accent-deep);
+  border: 1px solid rgba(205, 145, 168, 0.34);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.fab--collage.is-active {
+  background: linear-gradient(135deg, #ffdca8 0%, #f2a37a 100%);
+  color: #6e3c20;
+  box-shadow: 0 12px 28px rgba(242, 163, 122, 0.34);
+}
+
 @media (min-width: 769px) {
   .fab {
     right: max(28px, calc((100vw - var(--ah-shell-width)) / 2 + 16px));
+  }
+
+  .fab--collage {
+    bottom: 332px;
   }
 
   .fab--top {
@@ -798,6 +996,11 @@ onBeforeUnmount(() => {
 
   .fab--add {
     bottom: 94px;
+  }
+
+  .fab--collage {
+    bottom: 202px;
+    font-size: 13px;
   }
 
   .fab--top {
