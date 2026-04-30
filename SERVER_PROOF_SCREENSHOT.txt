@@ -1,0 +1,39 @@
+Project: Aobi Helper Web
+Purpose: Server deployment proof for screenshot upload
+Captured at: 2026-04-29 19:49:11 CST
+
+== BASIC ==
+VM-0-8-ubuntu
+2026-04-29 19:49:11 CST
+
+== BACKEND SERVICE ==
+active
+● aobihelper-backend.service - Aobi Helper Backend
+     Loaded: loaded (/etc/systemd/system/aobihelper-backend.service; enabled; preset: enabled)
+     Active: active (running) since Sun 2026-04-19 13:48:24 CST; 1 week 3 days ago
+   Main PID: 899225 (java)
+      Tasks: 43 (limit: 2265)
+     Memory: 397.0M (peak: 579.0M swap: 264.2M swap peak: 394.0M)
+        CPU: 27min 2.518s
+     CGroup: /system.slice/aobihelper-backend.service
+             └─899225 /usr/bin/java -Xms256m -Xmx768m -jar /opt/aobihelper/app/backend.jar --spring.profiles.active=prod --spring.config.additional-location=file:/etc/aobihelper/
+
+Apr 19 13:48:24 VM-0-8-ubuntu systemd[1]: Started aobihelper-backend.service - Aobi Helper Backend.
+
+== NGINX ==
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+
+== HEALTH ==
+{"code":0,"message":"OK","data":{"service":"aobihelper-backend","status":"UP"},"timestamp":"2026-04-29T19:49:12.172159314"}
+
+== DEPLOY FILES ==
+-rw-r--r-- 1 root root 66M Apr 19 13:48 /opt/aobihelper/app/backend.jar
+-rw-rw-r-- 1 www-data www-data 457 Apr 21 14:52 /opt/aobihelper/frontend/dist/index.html
+
+== FRONTEND ENTRY ==
+HTTP/1.1 200 OK
+Server: nginx/1.24.0 (Ubuntu)
+Date: Wed, 29 Apr 2026 11:49:12 GMT
+Content-Type: text/html
+Content-Length: 457

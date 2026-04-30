@@ -139,7 +139,7 @@ const emit = defineEmits<{
       >
         <div class="profit-mobile-item__top">
           <div class="profit-mobile-item__thumb">
-            <SquareImagePreview :file-id="item.imageFileId" empty-text="无图" />
+            <SquareImagePreview :file-id="item.imageFileId" empty-text="无图" enable-mobile-long-press-save />
           </div>
           <div class="profit-mobile-item__body">
             <div class="profit-mobile-item__title-wrap">

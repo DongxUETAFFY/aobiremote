@@ -165,7 +165,7 @@ const emit = defineEmits<{
 
           <div class="warehouse-mobile-item__top">
             <div class="warehouse-mobile-item__thumb">
-              <SquareImagePreview :file-id="item.imageFileId" empty-text="无图" />
+              <SquareImagePreview :file-id="item.imageFileId" empty-text="无图" enable-mobile-long-press-save />
             </div>
             <div class="warehouse-mobile-item__body">
               <div class="warehouse-mobile-item__title-wrap">

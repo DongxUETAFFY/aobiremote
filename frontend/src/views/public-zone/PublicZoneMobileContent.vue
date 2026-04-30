@@ -194,7 +194,7 @@ const emit = defineEmits<{
         </div>
 
         <div class="public-zone-mobile-item__thumb">
-          <SquareImagePreview :preview-url="buildImagePreviewUrl(item.imageFileId)" empty-text="无图" />
+          <SquareImagePreview :preview-url="buildImagePreviewUrl(item.imageFileId)" empty-text="无图" enable-mobile-long-press-save />
         </div>
 
         <div class="public-zone-mobile-item__meta-grid">
