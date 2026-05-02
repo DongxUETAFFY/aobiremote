@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { h } from 'vue'
 import { ElImage, ElMessageBox } from 'element-plus'
-import { APP_UPDATED_AT, APP_VERSION } from '@/constants/app-meta'
+import { APP_CURRENT_RELEASE_HIGHLIGHTS, APP_UPDATED_AT, APP_VERSION } from '@/constants/app-meta'
 
 type AboutItemKey = 'version' | 'creator' | 'log' | 'reward'
 
@@ -42,6 +42,9 @@ const creatorText = '本网页由 贴吧id：鹤箫雪 游戏id：纯在做梦 �
 
 const changeLogText = [
   '更新日志',
+  '',
+  '2026-05-02 v1.0.9',
+  ...APP_CURRENT_RELEASE_HIGHLIGHTS.map((item, index) => `${index + 1}. ${item}`),
   '',
   '2026-04-30 v1.0.8',
   '1. 手机端物品图片点开后支持更方便地保存，长按即可保存到本地。',

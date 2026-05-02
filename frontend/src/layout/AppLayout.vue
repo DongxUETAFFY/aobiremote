@@ -1,7 +1,13 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, h, onMounted } from 'vue'
+import { ElMessageBox } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
-import { APP_UPDATED_AT, APP_VERSION } from '@/constants/app-meta'
+import {
+  APP_CURRENT_RELEASE_HIGHLIGHTS,
+  APP_RELEASE_NOTICE_STORAGE_KEY,
+  APP_UPDATED_AT,
+  APP_VERSION,
+} from '@/constants/app-meta'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 
@@ -22,6 +28,7 @@ const currentTitle = computed(() => String(route.meta.title || appStore.appName)
 const currentUserLabel = computed(() => authStore.user?.nickname || authStore.user?.email || '游客')
 const versionLabel = APP_VERSION
 const updatedAtLabel = APP_UPDATED_AT
+const MOBILE_BREAKPOINT = 768
 
 const goTo = (path: string) => {
   router.push(path)
@@ -31,6 +38,46 @@ const handleLogout = async () => {
   await authStore.logout()
   router.push('/auth/login')
 }
+
+const isDesktopViewport = () => typeof window !== 'undefined' && window.innerWidth > MOBILE_BREAKPOINT
+
+const showReleaseNoticeIfNeeded = async () => {
+  if (!isDesktopViewport()) {
+    return
+  }
+
+  try {
+    if (window.localStorage.getItem(APP_RELEASE_NOTICE_STORAGE_KEY) === APP_VERSION) {
+      return
+    }
+
+    await ElMessageBox.alert(
+      h('div', { class: 'layout-release-note' }, [
+        h('p', { class: 'layout-release-note__lead' }, `当前版本 ${APP_VERSION}`),
+        h(
+          'ul',
+          { class: 'layout-release-note__list' },
+          APP_CURRENT_RELEASE_HIGHLIGHTS.map((item) => h('li', item)),
+        ),
+      ]),
+      '本次更新',
+      {
+        confirmButtonText: '我知道了',
+        showClose: true,
+        closeOnClickModal: false,
+        closeOnPressEscape: false,
+      },
+    )
+
+    window.localStorage.setItem(APP_RELEASE_NOTICE_STORAGE_KEY, APP_VERSION)
+  } catch {
+    // Ignore storage and close failures so the app can continue rendering normally.
+  }
+}
+
+onMounted(() => {
+  void showReleaseNoticeIfNeeded()
+})
 </script>
 
 <template>
@@ -531,5 +578,20 @@ const handleLogout = async () => {
   .layout-main {
     margin-top: 6px;
   }
+}
+
+:deep(.layout-release-note) {
+  color: #694e5d;
+  line-height: 1.8;
+}
+
+:deep(.layout-release-note__lead) {
+  margin: 0 0 10px;
+  font-weight: 800;
+}
+
+:deep(.layout-release-note__list) {
+  margin: 0;
+  padding-left: 18px;
 }
 </style>

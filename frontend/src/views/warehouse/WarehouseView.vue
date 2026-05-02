@@ -6,6 +6,7 @@ import FloatingQuickNav from '@/components/common/FloatingQuickNav.vue'
 import DesktopImageUploadArea from '@/components/common/DesktopImageUploadArea.vue'
 import FormOptionButtonGroup from '@/components/common/FormOptionButtonGroup.vue'
 import SquareImagePreview from '@/components/common/SquareImagePreview.vue'
+import UploadCollageWorkbenchDialog from '@/components/common/UploadCollageWorkbenchDialog.vue'
 import WarehouseDesktopContent from './WarehouseDesktopContent.vue'
 import WarehouseMobileContent from './WarehouseMobileContent.vue'
 import { uploadImage } from '@/api/file'
@@ -63,6 +64,7 @@ const collageLayoutMode = ref<'auto' | '3' | '4' | '5'>('auto')
 const collageGenerating = ref(false)
 const collagePreviewUrl = ref('')
 const collagePreviewVisible = ref(false)
+const uploadCollageDialogVisible = ref(false)
 
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增记录')
@@ -301,6 +303,10 @@ const handleGenerateCollage = async () => {
   } finally {
     collageGenerating.value = false
   }
+}
+
+const openUploadCollageDialog = () => {
+  uploadCollageDialogVisible.value = true
 }
 
 const openAddDialog = () => {
@@ -649,6 +655,7 @@ onBeforeUnmount(() => {
       :format-date="formatDate"
       :channel-label="channelLabel"
       :category-label="categoryLabel"
+      @open-upload-collage="openUploadCollageDialog"
       @open-add="openAddDialog"
       @page-change="handlePageChange"
       @category-filter="handleCategoryFilter"
@@ -808,6 +815,11 @@ onBeforeUnmount(() => {
       :selected-count="collageSelectedCount"
       :mobile="isMobile"
       :generating="collageGenerating"
+    />
+
+    <UploadCollageWorkbenchDialog
+      v-if="!isMobile"
+      v-model:visible="uploadCollageDialogVisible"
     />
 
     <transition name="fab">

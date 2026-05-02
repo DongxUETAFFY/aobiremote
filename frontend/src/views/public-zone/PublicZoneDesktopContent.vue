@@ -60,7 +60,12 @@ const emit = defineEmits<{
         <h2>社区动态</h2>
         <p class="public-zone-header__desc">共 {{ totalCount }} 条交易记录</p>
       </div>
-      <el-button v-if="isAuthenticated" type="primary" @click="emit('open-add')">
+      <el-button
+        v-if="isAuthenticated"
+        class="public-zone-header__action"
+        type="primary"
+        @click="emit('open-add')"
+      >
         + 发布交易
       </el-button>
     </section>
@@ -276,6 +281,13 @@ const emit = defineEmits<{
   content: '';
   border-radius: 44% 56% 58% 42%;
   background: linear-gradient(135deg, rgba(255, 143, 177, 0.2), rgba(156, 207, 156, 0.18));
+  pointer-events: none;
+}
+
+.public-zone-header__info,
+.public-zone-header__action {
+  position: relative;
+  z-index: 1;
 }
 
 .public-zone-header__eyebrow {

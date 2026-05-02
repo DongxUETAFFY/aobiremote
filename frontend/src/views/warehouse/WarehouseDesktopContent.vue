@@ -37,6 +37,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'open-add'): void
+  (e: 'open-upload-collage'): void
   (e: 'page-change', page: number): void
   (e: 'category-filter', category: InventoryCategory): void
   (e: 'update:filterKeyword', value: string): void
@@ -96,6 +97,9 @@ const collageSelectionText = (item: InventoryListItem) => {
         </p>
       </div>
       <div class="warehouse-summary__actions">
+        <el-button plain size="large" @click="emit('open-upload-collage')">
+          拼图
+        </el-button>
         <el-button type="primary" size="large" @click="emit('open-add')">
           + 新增记录
         </el-button>
