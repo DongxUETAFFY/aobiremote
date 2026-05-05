@@ -111,6 +111,7 @@ const collageSelectionText = (item: InventoryListItem) => {
         <strong class="warehouse-mobile-category__price">¥{{ summary.magicBuyPrice }}</strong>
         <span class="warehouse-mobile-category__count">魔力总件数 {{ summary.magicCount }} 件</span>
       </button>
+      <p class="warehouse-mobile-category__hint">点击卡片可筛选</p>
     </section>
 
     <section class="warehouse-mobile-search ah-glass-card ah-page-section">
@@ -381,11 +382,21 @@ const collageSelectionText = (item: InventoryListItem) => {
 .warehouse-mobile-category__price {
   color: var(--ah-title);
   font-size: 24px;
+  text-decoration: underline;
+  text-decoration-color: rgba(207, 93, 117, 0.35);
+  text-underline-offset: 4px;
 }
 
 .warehouse-mobile-category__count {
   color: var(--ah-text);
   font-size: 14px;
+}
+
+.warehouse-mobile-category__hint {
+  margin: 2px 0 0;
+  color: #9f7f8f;
+  font-size: 12px;
+  text-align: center;
 }
 
 .warehouse-mobile-search {
@@ -625,6 +636,7 @@ const collageSelectionText = (item: InventoryListItem) => {
   .warehouse-mobile-hero__total,
   .warehouse-mobile-hero__filter,
   .warehouse-mobile-category__count,
+  .warehouse-mobile-category__hint,
   .warehouse-mobile-batch__hint,
   .warehouse-mobile-item__remark {
     font-size: 11px;
@@ -638,6 +650,11 @@ const collageSelectionText = (item: InventoryListItem) => {
   .warehouse-mobile-category {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 5px;
+  }
+
+  .warehouse-mobile-category__hint {
+    grid-column: 1 / -1;
+    margin-top: 1px;
   }
 
   .warehouse-mobile-category__card {

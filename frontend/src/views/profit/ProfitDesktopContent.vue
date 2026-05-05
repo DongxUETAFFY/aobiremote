@@ -105,6 +105,7 @@ const emit = defineEmits<{
           <p class="profit-category-summary__count">魔力总件数 {{ summary.magicCount }} 件</p>
         </div>
       </div>
+      <p class="profit-category-summary__hint">点击卡片可筛选</p>
     </section>
 
     <section class="profit-search ah-glass-card ah-page-section">
@@ -279,11 +280,20 @@ const emit = defineEmits<{
 }
 
 .profit-category-summary__item {
+  position: relative;
   padding: 16px;
   border-radius: 18px;
   background: rgba(255, 250, 247, 0.78);
   border: 1px solid rgba(216, 168, 183, 0.16);
+  cursor: pointer;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.profit-category-summary__item:hover,
+.profit-category-summary__item:focus-within {
+  border-color: rgba(207, 93, 117, 0.28);
+  box-shadow: 0 10px 24px rgba(207, 93, 117, 0.1);
+  transform: translateY(-1px);
 }
 
 .profit-category-summary__item.is-active {
@@ -308,16 +318,29 @@ const emit = defineEmits<{
   font-size: 26px;
   font-weight: 800;
   cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: rgba(207, 93, 117, 0.35);
+  text-underline-offset: 4px;
+  transition: color 0.2s ease, text-decoration-color 0.2s ease;
 }
 
-.profit-category-summary__price:hover {
+.profit-category-summary__price:hover,
+.profit-category-summary__price:focus-visible {
   color: #cf5d75;
+  text-decoration-color: rgba(207, 93, 117, 0.7);
 }
 
 .profit-category-summary__count {
   margin: 8px 0 0;
   color: var(--ah-text);
   font-size: 14px;
+}
+
+.profit-category-summary__hint {
+  margin: -4px 0 0;
+  color: #9f7f8f;
+  font-size: 12px;
+  text-align: center;
 }
 
 .profit-search {

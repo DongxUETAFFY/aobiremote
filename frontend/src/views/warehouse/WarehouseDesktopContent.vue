@@ -135,6 +135,7 @@ const collageSelectionText = (item: InventoryListItem) => {
         </button>
         <p class="warehouse-category-summary__count">魔力总件数 {{ summary.magicCount }} 件</p>
       </div>
+      <p class="warehouse-category-summary__hint">点击卡片可筛选</p>
     </section>
 
     <section class="warehouse-search ah-glass-card ah-page-section">
@@ -402,11 +403,20 @@ const collageSelectionText = (item: InventoryListItem) => {
 }
 
 .warehouse-category-summary__item {
+  position: relative;
   padding: 16px;
   border-radius: 18px;
   background: rgba(255, 250, 247, 0.78);
   border: 1px solid rgba(216, 168, 183, 0.16);
+  cursor: pointer;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.warehouse-category-summary__item:hover,
+.warehouse-category-summary__item:focus-within {
+  border-color: rgba(207, 93, 117, 0.28);
+  box-shadow: 0 10px 24px rgba(207, 93, 117, 0.1);
+  transform: translateY(-1px);
 }
 
 .warehouse-category-summary__item.is-active {
@@ -431,16 +441,30 @@ const collageSelectionText = (item: InventoryListItem) => {
   font-size: 26px;
   font-weight: 800;
   cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: rgba(207, 93, 117, 0.35);
+  text-underline-offset: 4px;
+  transition: color 0.2s ease, text-decoration-color 0.2s ease;
 }
 
-.warehouse-category-summary__price:hover {
+.warehouse-category-summary__price:hover,
+.warehouse-category-summary__price:focus-visible {
   color: #cf5d75;
+  text-decoration-color: rgba(207, 93, 117, 0.7);
 }
 
 .warehouse-category-summary__count {
   margin: 8px 0 0;
   color: var(--ah-text);
   font-size: 14px;
+}
+
+.warehouse-category-summary__hint {
+  grid-column: 1 / -1;
+  margin: -2px 0 0;
+  color: #9f7f8f;
+  font-size: 12px;
+  text-align: center;
 }
 
 .warehouse-batch {

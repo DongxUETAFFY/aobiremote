@@ -42,4 +42,6 @@ public interface AuthCacheService {
     void clearLoginFailEmailCount(String email);
 
     void clearLoginFailIpCount(String ip);
+
+    int incrementRateLimitCounter(String bucket, String subjectKey, Duration ttl);
 }

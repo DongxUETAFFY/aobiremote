@@ -113,6 +113,11 @@ public class LocalAuthCacheService implements AuthCacheService {
         countEntries.remove(loginFailIpKey(ip));
     }
 
+    @Override
+    public int incrementRateLimitCounter(String bucket, String subjectKey, Duration ttl) {
+        return incrementAndGet(rateLimitKey(bucket, subjectKey), ttl);
+    }
+
     private void increment(String key, Duration ttl) {
         TimedEntry<Integer> current = countEntries.get(key);
         if (current == null || current.isExpired()) {
@@ -120,6 +125,17 @@ public class LocalAuthCacheService implements AuthCacheService {
             return;
         }
         countEntries.put(key, new TimedEntry<>(current.value() + 1, current.expiresAt()));
+    }
+
+    private int incrementAndGet(String key, Duration ttl) {
+        TimedEntry<Integer> current = countEntries.get(key);
+        if (current == null || current.isExpired()) {
+            countEntries.put(key, TimedEntry.of(1, ttl));
+            return 1;
+        }
+        int nextValue = current.value() + 1;
+        countEntries.put(key, new TimedEntry<>(nextValue, current.expiresAt()));
+        return nextValue;
     }
 
     private int getCount(String key) {
@@ -170,6 +186,10 @@ public class LocalAuthCacheService implements AuthCacheService {
 
     private String loginFailIpKey(String ip) {
         return "login-fail-ip:" + ip;
+    }
+
+    private String rateLimitKey(String bucket, String subjectKey) {
+        return "rate-limit:" + bucket + ":" + subjectKey;
     }
 
     private record TimedEntry<T>(T value, LocalDateTime expiresAt) {

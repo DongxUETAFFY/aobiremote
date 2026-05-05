@@ -90,6 +90,7 @@ const emit = defineEmits<{
         <strong class="profit-mobile-category__price">¥{{ summary.magicBuyAmount }}</strong>
         <span class="profit-mobile-category__count">魔力总件数 {{ summary.magicCount }} 件</span>
       </button>
+      <p class="profit-mobile-category__hint">点击卡片可筛选</p>
     </section>
 
     <section class="profit-mobile-search ah-glass-card ah-page-section">
@@ -284,11 +285,21 @@ const emit = defineEmits<{
 .profit-mobile-category__price {
   color: var(--ah-title);
   font-size: 24px;
+  text-decoration: underline;
+  text-decoration-color: rgba(207, 93, 117, 0.35);
+  text-underline-offset: 4px;
 }
 
 .profit-mobile-category__count {
   color: var(--ah-text);
   font-size: 14px;
+}
+
+.profit-mobile-category__hint {
+  margin: 2px 0 0;
+  color: #9f7f8f;
+  font-size: 12px;
+  text-align: center;
 }
 
 .profit-mobile-search {
@@ -495,6 +506,7 @@ const emit = defineEmits<{
 
   .profit-mobile-hero__stat span,
   .profit-mobile-category__count,
+  .profit-mobile-category__hint,
   .profit-mobile-item__remark {
     font-size: 11px;
   }
@@ -527,6 +539,11 @@ const emit = defineEmits<{
   .profit-mobile-category {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 5px;
+  }
+
+  .profit-mobile-category__hint {
+    grid-column: 1 / -1;
+    margin-top: 1px;
   }
 
   .profit-mobile-category__card {

@@ -80,6 +80,13 @@ describe('Warehouse collage mode', () => {
     expect(wrapper.text()).toContain('生成拼图')
   })
 
+  it('shows a category filter hint below the price cards', () => {
+    const wrapper = mountDesktopContent([baseItem])
+
+    expect(wrapper.text()).toContain('点击卡片可筛选')
+    expect(wrapper.find('.warehouse-category-summary__hint').exists()).toBe(true)
+  })
+
   it('shows non-selectable collage text for items without images', () => {
     const wrapper = mountDesktopContent([
       {

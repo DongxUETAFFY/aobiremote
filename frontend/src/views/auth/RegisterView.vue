@@ -12,6 +12,10 @@ const registering = ref(false)
 const countdown = ref(0)
 const timer = ref<number | null>(null)
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const VERIFICATION_CODE_PATTERN = /^\d{6}$/
+const PASSWORD_RULE_PATTERN = /^(?=.*[A-Za-z])(?=.*\d).+$/
+
 const form = reactive({
   email: '',
   code: '',
@@ -33,15 +37,53 @@ const startCountdown = () => {
   }, 1000)
 }
 
-const handleSendCode = async () => {
+const validateEmail = () => {
   if (!form.email) {
     ElMessage.warning('请先输入邮箱')
+    return false
+  }
+  if (!EMAIL_PATTERN.test(form.email.trim())) {
+    ElMessage.warning('请输入正确的邮箱地址')
+    return false
+  }
+  return true
+}
+
+const validateRegisterForm = () => {
+  if (!validateEmail()) {
+    return false
+  }
+  if (!form.code || !form.password) {
+    ElMessage.warning('请填写完整注册信息')
+    return false
+  }
+  if (!VERIFICATION_CODE_PATTERN.test(form.code.trim())) {
+    ElMessage.warning('验证码必须是 6 位数字')
+    return false
+  }
+  if (form.password.length < 8 || form.password.length > 64) {
+    ElMessage.warning('密码长度必须在 8 到 64 位之间')
+    return false
+  }
+  if (!PASSWORD_RULE_PATTERN.test(form.password)) {
+    ElMessage.warning('密码必须同时包含字母和数字')
+    return false
+  }
+  if (form.password !== form.confirmPassword) {
+    ElMessage.warning('两次输入的密码不一致')
+    return false
+  }
+  return true
+}
+
+const handleSendCode = async () => {
+  if (!validateEmail()) {
     return
   }
 
   sendingCode.value = true
   try {
-    await authStore.sendRegisterCode({ email: form.email })
+    await authStore.sendRegisterCode({ email: form.email.trim() })
     ElMessage.success('验证码已发送')
     startCountdown()
   } catch (error: any) {
@@ -52,20 +94,15 @@ const handleSendCode = async () => {
 }
 
 const handleSubmit = async () => {
-  if (!form.email || !form.code || !form.password) {
-    ElMessage.warning('请填写完整注册信息')
-    return
-  }
-  if (form.password !== form.confirmPassword) {
-    ElMessage.warning('两次输入的密码不一致')
+  if (!validateRegisterForm()) {
     return
   }
 
   registering.value = true
   try {
     await authStore.register({
-      email: form.email,
-      code: form.code,
+      email: form.email.trim(),
+      code: form.code.trim(),
       password: form.password,
     })
     ElMessage.success('注册成功，请登录')

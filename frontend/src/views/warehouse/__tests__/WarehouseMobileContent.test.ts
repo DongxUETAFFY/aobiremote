@@ -75,6 +75,13 @@ const mountMobileContent = (items: InventoryListItem[]) =>
   })
 
 describe('Warehouse mobile content', () => {
+  it('shows a category filter hint below the mobile price cards', () => {
+    const wrapper = mountMobileContent([baseItem])
+
+    expect(wrapper.text()).toContain('点击卡片可筛选')
+    expect(wrapper.find('.warehouse-mobile-category__hint').exists()).toBe(true)
+  })
+
   it('does not wrap item cards inside the batch checkbox group in collage mode', () => {
     const wrapper = mountMobileContent([baseItem])
 
@@ -87,13 +94,13 @@ describe('Warehouse mobile content', () => {
       {
         ...baseItem,
         id: 2,
-        itemName: '第二件物品',
+        itemName: '测试物品二',
         imageFileId: 'file-2',
       },
       {
         ...baseItem,
         id: 3,
-        itemName: '第三件物品',
+        itemName: '测试物品三',
         imageFileId: 'file-3',
       },
     ]
@@ -175,7 +182,8 @@ describe('Warehouse mobile content', () => {
 
     await userEvent.click(collageCheckboxes[1].element as HTMLElement)
 
-    const checkedInputs = wrapper.findAll('.warehouse-mobile-item__selection input[type="checkbox"]')
+    const checkedInputs = wrapper
+      .findAll('.warehouse-mobile-item__selection input[type="checkbox"]')
       .filter((input) => (input.element as HTMLInputElement).checked)
 
     expect(checkedInputs).toHaveLength(1)

@@ -16,6 +16,7 @@ public class RedisAuthCacheService implements AuthCacheService {
     private static final String RESET_PASSWORD_HOURLY_KEY_PREFIX = "auth:reset-password-hourly:";
     private static final String LOGIN_FAIL_EMAIL_KEY_PREFIX = "auth:login-fail-email:";
     private static final String LOGIN_FAIL_IP_KEY_PREFIX = "auth:login-fail-ip:";
+    private static final String RATE_LIMIT_KEY_PREFIX = "auth:rate-limit:";
 
     private final StringRedisTemplate stringRedisTemplate;
 
@@ -123,6 +124,15 @@ public class RedisAuthCacheService implements AuthCacheService {
         stringRedisTemplate.delete(loginFailIpKey(ip));
     }
 
+    @Override
+    public int incrementRateLimitCounter(String bucket, String subjectKey, Duration ttl) {
+        Long count = stringRedisTemplate.opsForValue().increment(rateLimitKey(bucket, subjectKey));
+        if (count != null && count == 1L) {
+            stringRedisTemplate.expire(rateLimitKey(bucket, subjectKey), ttl);
+        }
+        return count == null ? 0 : count.intValue();
+    }
+
     private int getInteger(String key) {
         String value = stringRedisTemplate.opsForValue().get(key);
         return value == null ? 0 : Integer.parseInt(value);
@@ -165,5 +175,9 @@ public class RedisAuthCacheService implements AuthCacheService {
 
     private String loginFailIpKey(String ip) {
         return LOGIN_FAIL_IP_KEY_PREFIX + ip;
+    }
+
+    private String rateLimitKey(String bucket, String subjectKey) {
+        return RATE_LIMIT_KEY_PREFIX + bucket + ":" + subjectKey;
     }
 }

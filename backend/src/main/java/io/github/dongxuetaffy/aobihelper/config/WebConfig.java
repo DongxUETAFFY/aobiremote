@@ -6,15 +6,30 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
-@EnableConfigurationProperties({AppCorsProperties.class, MinioProperties.class, AuthProperties.class, FileProperties.class})
+@EnableConfigurationProperties({
+    AppCorsProperties.class,
+    MinioProperties.class,
+    AuthProperties.class,
+    FileProperties.class,
+    PublicAccessProperties.class
+})
 public class WebConfig implements WebMvcConfigurer {
     private final AppCorsProperties appCorsProperties;
+    private final ApiAuthGuardInterceptor apiAuthGuardInterceptor;
+    private final AnonymousPublicReadThrottleInterceptor anonymousPublicReadThrottleInterceptor;
 
-    public WebConfig(AppCorsProperties appCorsProperties) {
+    public WebConfig(
+        AppCorsProperties appCorsProperties,
+        ApiAuthGuardInterceptor apiAuthGuardInterceptor,
+        AnonymousPublicReadThrottleInterceptor anonymousPublicReadThrottleInterceptor
+    ) {
         this.appCorsProperties = appCorsProperties;
+        this.apiAuthGuardInterceptor = apiAuthGuardInterceptor;
+        this.anonymousPublicReadThrottleInterceptor = anonymousPublicReadThrottleInterceptor;
     }
 
     @Override
@@ -25,6 +40,14 @@ public class WebConfig implements WebMvcConfigurer {
             .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
             .allowedHeaders("*")
             .allowCredentials(false);
+    }
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(apiAuthGuardInterceptor)
+            .addPathPatterns("/api/**");
+        registry.addInterceptor(anonymousPublicReadThrottleInterceptor)
+            .addPathPatterns("/api/**");
     }
 
     @Bean
